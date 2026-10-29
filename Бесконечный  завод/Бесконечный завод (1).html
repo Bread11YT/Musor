@@ -1,0 +1,969 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Бесконечный завод</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Russo+One&display=swap" rel="stylesheet">
+<style>
+/* Layout: full-bleed map canvas under a HUD. Hub card and warehouse on top, toast in the middle, inspector and toolbar docked at the bottom. One committed look: dark slate floor, graphite panels, safety amber for the hub. */
+:root{
+  --floor:#27312e; --grid:#313d39; --panel:rgba(20,26,24,.93); --panel-solid:#171d1b; --line:#34423d;
+  --ink:#e8ebe5; --dim:#9aa7a0; --amber:#f2a93b; --amber-ink:#2a1b05; --good:#6cc08b; --bad:#ee6a55;
+  --f-display:'Russo One','Arial Black',Impact,sans-serif;
+  --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%;box-sizing:border-box}
+body{margin:0;background:var(--floor);color:var(--ink);font:14px/1.4 var(--f-body);overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+#app{position:relative;width:100%;height:100%;overflow:hidden;touch-action:none}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+#hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;gap:8px;
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#hud>*{pointer-events:none}
+.card{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.dim{color:var(--dim)}
+
+#top{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+#hubcard{padding:10px 12px;width:min(100%,330px);box-sizing:border-box;min-width:0}
+.hh{display:flex;align-items:center;gap:10px}
+.hh h1{font:400 17px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;margin:0;flex:1}
+.badge{font:500 12px/1 var(--f-mono);background:var(--amber);color:var(--amber-ink);padding:5px 7px;border-radius:3px;letter-spacing:.04em}
+.badge b{font-weight:500;font-size:15px}
+.ghost{background:transparent;border:1px solid var(--line);border-radius:4px;width:30px;height:30px;font:500 14px var(--f-mono)}
+.ghost:hover{border-color:var(--amber)}
+.lbl{margin:8px 0 6px;font-size:12px;color:var(--dim)}
+#goals{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+#goals li{display:grid;grid-template-columns:20px 1fr auto;column-gap:8px;row-gap:3px;align-items:center}
+#goals img{width:20px;height:20px}
+.gn{font-size:13px;min-width:0}
+.gv{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums}
+.bar{grid-column:1/-1;height:4px;background:#26312d;border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--amber)}
+#perk{margin:9px 0 0;font-size:12px;color:var(--dim);line-height:1.45}
+#help{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.5}
+#help ul{margin:0 0 8px;padding-left:16px}
+#help kbd,.tk{font:500 11px var(--f-mono)}
+#help kbd{background:#26312d;border:1px solid var(--line);border-radius:3px;padding:0 4px}
+.linkbtn{background:none;border:0;padding:0;color:var(--dim);text-decoration:underline;font-size:12px}
+
+#stockcard{margin-left:auto;padding:8px 10px;max-width:min(100%,380px);box-sizing:border-box}
+#stockcard h2{margin:0 0 6px;font:400 12px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+#stock{display:flex;flex-wrap:wrap;gap:4px 10px}
+.sc{display:inline-flex;align-items:center;gap:5px;font:500 12px var(--f-mono);font-variant-numeric:tabular-nums}
+.sc img{width:18px;height:18px}
+.empty{font-size:12px;color:var(--dim)}
+
+#toast{align-self:center;max-width:min(92%,420px);text-align:center;background:var(--panel-solid);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:4px;padding:8px 14px;font-size:13px;white-space:pre-line}
+#toast.bad{border-left-color:var(--bad)}
+#toast.big{border-left-color:var(--amber);background:#2a2214;font-size:15px;padding:12px 18px}
+#toast[hidden]{display:none}
+
+#bottom{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+#info{width:min(100%,560px);box-sizing:border-box;padding:10px 12px;position:relative}
+.ih{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.ih img{width:26px;height:26px}
+.ih b{font:400 14px var(--f-display);letter-spacing:.04em;flex:1}
+#info p{margin:2px 0 6px;font-size:13px}
+.costs{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:3px;padding:2px 7px 2px 4px;font:500 12px var(--f-mono);font-variant-numeric:tabular-nums}
+.chip img{width:16px;height:16px}
+.chip i{font-style:normal;color:var(--dim)}
+.chip.bad{border-color:var(--bad);color:var(--bad)}
+.chip.bad i{color:var(--bad)}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.btn{background:#222b28;border:1px solid var(--line);border-radius:4px;padding:6px 10px;font-size:13px;min-height:34px}
+.btn:hover{border-color:var(--amber)}
+.btn.on{border-color:var(--amber);background:rgba(242,169,59,.14)}
+.btn.danger:hover{border-color:var(--bad);color:var(--bad)}
+.rec{display:inline-flex;align-items:center;gap:6px}
+.rec img{width:20px;height:20px}
+.rd{font-size:12px;color:var(--dim);margin:6px 0 0}
+.st{font:500 12px var(--f-mono)}
+.xbtn{position:absolute;top:6px;right:6px;width:26px;height:26px;border:0;background:transparent;color:var(--dim);font-size:16px}
+
+#toolbar{max-width:100%;box-sizing:border-box;display:flex;gap:3px;padding:5px;overflow-x:auto;scrollbar-width:thin;touch-action:pan-x}
+.tool{flex:none;width:62px;position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px 4px;background:transparent;border:1px solid transparent;border-radius:4px;font-size:10.5px;line-height:1.15;color:var(--ink)}
+.tool:hover{background:rgba(255,255,255,.05)}
+.tool.on{border-color:var(--amber);background:rgba(242,169,59,.13)}
+.tool img,.tool svg{width:32px;height:32px}
+.tool svg{color:var(--ink)}
+.tool .tn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool .tk{color:var(--dim)}
+.tool.locked{opacity:.38}
+.tool.locked .tk{color:var(--amber)}
+@media (max-width:520px){#hubcard{width:100%}#stockcard{margin-left:0;width:100%;max-width:none}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+<div id="app">
+  <canvas id="map" aria-label="Карта завода"></canvas>
+  <div id="hud">
+    <div id="top">
+      <section class="card" id="hubcard">
+        <div class="hh">
+          <span class="badge">УР <b id="lvl">1</b></span>
+          <h1>Хаб</h1>
+          <button id="helpBtn" class="ghost" aria-label="Справка" aria-expanded="false">?</button>
+        </div>
+        <p class="lbl">Сдай это в хаб, чтобы поднять уровень</p>
+        <ul id="goals"></ul>
+        <p id="perk"></p>
+        <div id="help" hidden>
+          <ul>
+            <li>Мышь: <kbd>ЛКМ</kbd> строить и выбирать, <kbd>ПКМ</kbd> или перетаскивание курсором двигает карту, колесо меняет масштаб.</li>
+            <li>Клавиши: <kbd>1</kbd>–<kbd>8</kbd> постройки, <kbd>R</kbd> повернуть, <kbd>X</kbd> снос, <kbd>Q</kbd> курсор, <kbd>WASD</kbd> камера.</li>
+            <li>Телефон: два пальца двигают и масштабируют карту. Курсором тяни карту одним пальцем.</li>
+            <li>Клик курсором по жиле добывает руду вручную.</li>
+          </ul>
+          <button id="resetBtn" class="linkbtn">Начать заново</button>
+        </div>
+      </section>
+      <section class="card" id="stockcard">
+        <h2>Склад</h2>
+        <div id="stock"></div>
+      </section>
+    </div>
+    <div id="toast" hidden></div>
+    <div id="bottom">
+      <section class="card" id="info" hidden></section>
+      <nav class="card" id="toolbar" aria-label="Постройки"></nav>
+    </div>
+  </div>
+</div>
+<script>
+(()=>{
+//#SIM-START
+const TAU=Math.PI*2;
+const DIRS=[[1,0],[0,1],[-1,0],[0,-1]];
+const SP=0.34, CONV_SPEED=2.2, DRILL_RATE=0.5, SMELT_TIME=2.2, GEN_KW=120, SOLAR_KW=40, GEN_BURN=10, POLE_REACH=3, POLE_LINK=6, STEP=1/30;
+const KW={smelter:40,assembler:60};
+const ITEMS={
+  iron_ore:{name:'Железная руда',color:'#8da2b8',shape:'ore'},
+  copper_ore:{name:'Медная руда',color:'#cf7a43',shape:'ore'},
+  coal:{name:'Уголь',color:'#2b2f33',shape:'ore'},
+  iron_plate:{name:'Железная пластина',color:'#cfd8e0',shape:'plate'},
+  copper_plate:{name:'Медная пластина',color:'#f0a46c',shape:'plate'},
+  gear:{name:'Шестерня',color:'#e6c64f',shape:'gear'},
+  circuit:{name:'Плата',color:'#4fb877',shape:'circuit'},
+  motor:{name:'Мотор',color:'#e0645a',shape:'motor'}
+};
+const RECIPES={
+  gear:{name:'Шестерня',in:{iron_plate:2},out:'gear',time:2},
+  circuit:{name:'Плата',in:{iron_plate:1,copper_plate:2},out:'circuit',time:3},
+  motor:{name:'Мотор',in:{gear:2,circuit:1},out:'motor',time:4}
+};
+const BT={
+  conveyor:{name:'Конвейер',cost:{iron_ore:1},unlock:1,desc:'Везёт предметы. Тяни по карте, и линия ляжет сама. R поворачивает.'},
+  drill:{name:'Бур',cost:{iron_ore:8},unlock:1,desc:'Ставится на жилу. Жилы бесконечные, бур не выдыхается. Отдаёт добытое в соседние конвейеры и машины.'},
+  splitter:{name:'Распределитель',cost:{iron_ore:3},unlock:1,desc:'Раскидывает входящие предметы по трём другим сторонам по кругу.'},
+  smelter:{name:'Плавильня',cost:{iron_ore:20},unlock:2,desc:'Руда становится пластиной. Нужно 40 кВт.'},
+  generator:{name:'Генератор',cost:{iron_ore:15,coal:5},unlock:2,desc:'Сжигает уголь и даёт 120 кВт. Подай уголь конвейером или буром вплотную.'},
+  pole:{name:'Столб',cost:{iron_ore:2},unlock:2,desc:'Собирает сеть: машины в 3 клетках, другие столбы в 6. Соседние здания тоже делят сеть.'},
+  assembler:{name:'Сборщик',cost:{iron_plate:12,copper_plate:5},unlock:3,desc:'Собирает изделия по рецепту, рецепт выбирается кликом. Нужно 60 кВт.'},
+  solar:{name:'Солнечная панель',cost:{iron_plate:15,copper_plate:10},unlock:4,desc:'Даёт 40 кВт без топлива.'},
+  hub:{name:'Хаб',cost:{},unlock:1,size:3,desc:'Сюда сдают предметы для уровня. Всё сданное идёт на склад.'}
+};
+const GOALS=[null,{iron_ore:25,coal:10},{iron_plate:30,copper_plate:10},{gear:20,copper_plate:30},{circuit:15,gear:20},{motor:10,circuit:10},{iron_plate:150,copper_plate:100,gear:40}];
+const POOL=['iron_plate','copper_plate','gear','circuit','motor'];
+const BASE={iron_plate:60,copper_plate:50,gear:30,circuit:25,motor:12};
+function goalsFor(n){
+  if(GOALS[n]) return GOALS[n];
+  const k=n-6, a=POOL[(2*n)%5], b=POOL[(2*n+3)%5], f=1+0.4*k;
+  return {[a]:Math.round(BASE[a]*f/5)*5,[b]:Math.round(BASE[b]*f/5)*5};
+}
+
+function hash2(x,y,s){
+  let h=Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^Math.imul(s|0,2147483647);
+  h=Math.imul(h^(h>>>13),1274126177); h^=h>>>16; h=Math.imul(h,2246822519); h^=h>>>13;
+  return (h>>>0)/4294967296;
+}
+const STARTERS=[{t:'iron_ore',x:5.5,y:-2.5,r:2.8},{t:'coal',x:-5.5,y:3.5,r:2.6},{t:'copper_ore',x:2.5,y:6.5,r:2.8}];
+const regCache=new Map();
+function regionBlobs(rx,ry){
+  const k=rx*65536+ry; let r=regCache.get(k); if(r) return r;
+  r=[];
+  for(let s=0;s<2;s++){
+    if(hash2(rx,ry,s*7+1)>0.78) continue;
+    const q=hash2(rx,ry,s*7+2);
+    r.push({t:q<0.42?'iron_ore':q<0.72?'copper_ore':'coal',
+      x:rx*16+5.5+hash2(rx,ry,s*7+3)*5, y:ry*16+5.5+hash2(rx,ry,s*7+4)*5, r:2.2+hash2(rx,ry,s*7+5)*2.3});
+  }
+  regCache.set(k,r); return r;
+}
+function resAt(x,y){
+  if(Math.abs(x)<=1&&Math.abs(y)<=1) return null;
+  const n=(hash2(x,y,99)-0.5);
+  for(const s of STARTERS){ if(Math.hypot(x+0.5-s.x,y+0.5-s.y)<s.r+n) return s.t; }
+  const bl=regionBlobs(Math.floor(x/16),Math.floor(y/16));
+  for(const b of bl){ if(Math.hypot(x+0.5-b.x,y+0.5-b.y)<b.r+n) return b.t; }
+  return null;
+}
+
+const hooks={levelUp(){}};
+const G={blds:[],occ:new Map(),stock:{},level:1,delivered:{},nets:[],links:[],netDirty:true,nextId:1,time:0,hub:null};
+const key=(x,y)=>x*4194304+y;
+const bldAt=(x,y)=>G.occ.get(key(x,y))||null;
+const canAfford=c=>{for(const k in c) if((G.stock[k]||0)<c[k]) return false; return true;};
+const spend=(c,sign)=>{for(const k in c) G.stock[k]=(G.stock[k]||0)+sign*c[k];};
+const lacking=c=>Object.keys(c).filter(k=>(G.stock[k]||0)<c[k]).map(k=>ITEMS[k].name+' ×'+(c[k]-(G.stock[k]||0))).join(', ');
+const unlocked=t=>G.level>=BT[t].unlock;
+function cellsOf(b){const r=b.w===3?1:0,a=[];for(let i=-r;i<=r;i++)for(let j=-r;j<=r;j++)a.push([b.x+i,b.y+j]);return a;}
+
+function addBld(type,x,y,dir,extra){
+  const d=BT[type];
+  const b={id:G.nextId++,type,x,y,w:d.size||1,dir:dir||0,rr:0};
+  switch(type){
+    case 'conveyor': b.items=[]; break;
+    case 'drill': b.res=resAt(x,y); b.prog=0; b.out=0; b.active=false; break;
+    case 'splitter': b.buf=null; break;
+    case 'smelter': b.inv={iron_ore:0,copper_ore:0}; b.cur=null; b.prog=0; b.out=[]; b.want=false; b.sat=0; break;
+    case 'assembler': b.recipe='gear'; b.inv={}; b.cur=false; b.prog=0; b.out=[]; b.want=false; b.sat=0; break;
+    case 'generator': b.coal=0; b.burn=0; b.fuel=false; b.lit=false; break;
+    case 'solar': b.fuel=true; break;
+  }
+  if(extra) Object.assign(b,extra);
+  for(const [cx,cy] of cellsOf(b)) G.occ.set(key(cx,cy),b);
+  G.blds.push(b); G.netDirty=true;
+  return b;
+}
+function canPlace(type,x,y){
+  if(G.occ.has(key(x,y))) return {ok:false,reason:'Клетка занята'};
+  if(type==='drill'&&!resAt(x,y)) return {ok:false,reason:'Бур ставится на жилу, то есть на цветное пятно'};
+  return {ok:true};
+}
+function placeBld(type,x,y,dir){
+  const d=BT[type];
+  if(!d||type==='hub') return {ok:false,reason:'Так строить нельзя'};
+  if(G.level<d.unlock) return {ok:false,reason:'Откроется на уровне '+d.unlock};
+  const v=canPlace(type,x,y); if(!v.ok) return v;
+  if(!canAfford(d.cost)) return {ok:false,reason:'Не хватает: '+lacking(d.cost)};
+  spend(d.cost,-1);
+  return {ok:true,b:addBld(type,x,y,dir)};
+}
+function refundInv(b){
+  const add=(k,n)=>{if(n>0)G.stock[k]=(G.stock[k]||0)+n;};
+  if(b.inv) for(const k in b.inv) add(k,b.inv[k]);
+  if(Array.isArray(b.out)) for(const t of b.out) add(t,1);
+  if(b.coal) add('coal',b.coal);
+  if(typeof b.cur==='string') add(b.cur,1);
+}
+function removeBld(b){
+  if(!b||b.type==='hub') return false;
+  spend(BT[b.type].cost,1); refundInv(b);
+  for(const [cx,cy] of cellsOf(b)) G.occ.delete(key(cx,cy));
+  const i=G.blds.indexOf(b); if(i>=0) G.blds.splice(i,1);
+  G.netDirty=true; return true;
+}
+function setRecipe(b,r){
+  if(b.type!=='assembler'||!RECIPES[r]||b.recipe===r) return;
+  refundInv(b); b.inv={}; b.out=[]; b.cur=false; b.prog=0; b.recipe=r;
+}
+
+function deliver(type){
+  G.stock[type]=(G.stock[type]||0)+1;
+  const g=goalsFor(G.level);
+  if(g[type]!==undefined){ G.delivered[type]=(G.delivered[type]||0)+1; checkLevel(); }
+}
+function checkLevel(){
+  const g=goalsFor(G.level);
+  for(const k in g) if((G.delivered[k]||0)<g[k]) return;
+  G.level++; G.delivered={}; hooks.levelUp(G.level);
+}
+
+function give(t,type,fx,fy){
+  switch(t.type){
+    case 'hub': deliver(type); return true;
+    case 'conveyor':{
+      const dx=DIRS[t.dir][0], dy=DIRS[t.dir][1];
+      if(t.x+dx===fx&&t.y+dy===fy) return false;
+      const et=(t.x-dx===fx&&t.y-dy===fy)?0:0.5;
+      for(const it of t.items) if(Math.abs(it.t-et)<SP) return false;
+      t.items.push({type,t:et}); t.items.sort((a,b)=>b.t-a.t); return true;
+    }
+    case 'splitter': if(t.buf) return false; t.buf={type,fx,fy}; return true;
+    case 'smelter':
+      if(type!=='iron_ore'&&type!=='copper_ore') return false;
+      if(t.inv[type]>=5) return false; t.inv[type]++; return true;
+    case 'assembler':{
+      const r=RECIPES[t.recipe];
+      if(!(type in r.in)) return false;
+      if((t.inv[type]||0)>=r.in[type]*2) return false;
+      t.inv[type]=(t.inv[type]||0)+1; return true;
+    }
+    case 'generator': if(type!=='coal'||t.coal>=5) return false; t.coal++; return true;
+  }
+  return false;
+}
+function pushOut(b,type){
+  for(let i=0;i<4;i++){
+    const d=(b.rr+i)&3, n=bldAt(b.x+DIRS[d][0],b.y+DIRS[d][1]);
+    if(n&&n!==b&&give(n,type,b.x,b.y)){ b.rr=(d+1)&3; return true; }
+  }
+  return false;
+}
+
+function updConveyor(b,dt){
+  const it=b.items; if(!it.length) return;
+  const v=CONV_SPEED*dt, f=bldAt(b.x+DIRS[b.dir][0],b.y+DIRS[b.dir][1]);
+  for(let i=0;i<it.length;){
+    const lim=i===0?1:it[i-1].t-SP;
+    let nt=it[i].t+v; if(nt>lim) nt=Math.max(it[i].t,lim);
+    it[i].t=nt;
+    if(i===0&&nt>=1&&f&&give(f,it[0].type,b.x,b.y)){ it.shift(); continue; }
+    i++;
+  }
+}
+function updDrill(b,dt,mul){
+  if(b.out>0&&b.res&&pushOut(b,b.res)) b.out--;
+  if(b.out<2){ b.prog+=dt*DRILL_RATE*mul; if(b.prog>=1){ b.prog-=1; b.out++; } }
+  b.active=b.out<2;
+}
+function updSplitter(b){
+  if(!b.buf) return;
+  for(let i=0;i<4;i++){
+    const d=(b.rr+i)&3, nx=b.x+DIRS[d][0], ny=b.y+DIRS[d][1];
+    if(nx===b.buf.fx&&ny===b.buf.fy) continue;
+    const n=bldAt(nx,ny);
+    if(n&&give(n,b.buf.type,b.x,b.y)){ b.rr=(d+1)&3; b.buf=null; return; }
+  }
+}
+function updSmelter(b,dt,sat){
+  b.sat=sat;
+  if(b.out.length&&pushOut(b,b.out[0])) b.out.shift();
+  if(b.cur===null){
+    b.want=false;
+    if(b.out.length<4){
+      const t=(b.inv.iron_ore>0||b.inv.copper_ore>0)?(b.inv.iron_ore>=b.inv.copper_ore?'iron_ore':'copper_ore'):null;
+      if(t){ b.want=true; if(sat>0){ b.inv[t]--; b.cur=t; b.prog=0; } }
+    }
+  }else{
+    b.want=true; b.prog+=dt*sat/SMELT_TIME;
+    if(b.prog>=1){ b.out.push(b.cur==='iron_ore'?'iron_plate':'copper_plate'); b.cur=null; b.prog=0; }
+  }
+}
+function updAssembler(b,dt,sat){
+  b.sat=sat;
+  if(b.out.length&&pushOut(b,b.out[0])) b.out.shift();
+  const r=RECIPES[b.recipe];
+  if(!b.cur){
+    let can=b.out.length<4;
+    if(can) for(const k in r.in) if((b.inv[k]||0)<r.in[k]){ can=false; break; }
+    b.want=can;
+    if(can&&sat>0){ for(const k in r.in) b.inv[k]-=r.in[k]; b.cur=true; b.prog=0; }
+  }else{
+    b.want=true; b.prog+=dt*sat/r.time;
+    if(b.prog>=1){ b.out.push(r.out); b.cur=false; b.prog=0; }
+  }
+}
+function updGenerator(b,dt,net){
+  const load=net?net.load:0;
+  if(b.burn<=0&&b.coal>0&&load>0.001){ b.coal--; b.burn=GEN_BURN; }
+  if(b.burn>0) b.burn-=dt*load;
+  b.fuel=b.burn>0||b.coal>0;
+  b.lit=b.burn>0&&load>0.001;
+}
+
+const POWER={generator:1,solar:1,smelter:1,assembler:1,pole:1};
+function rebuildNets(){
+  const nodes=G.blds.filter(b=>POWER[b.type]);
+  const parent=new Map(); nodes.forEach(n=>parent.set(n,n));
+  const find=x=>{while(parent.get(x)!==x){parent.set(x,parent.get(parent.get(x)));x=parent.get(x);}return x;};
+  const uni=(a,b)=>{a=find(a);b=find(b);if(a!==b)parent.set(a,b);};
+  G.links=[];
+  for(const p of nodes){
+    for(const [dx,dy] of DIRS){ const n=bldAt(p.x+dx,p.y+dy); if(n&&n!==p&&POWER[n.type]) uni(p,n); }
+    if(p.type!=='pole') continue;
+    for(const q of nodes){
+      if(q===p) continue;
+      const d=Math.max(Math.abs(p.x-q.x),Math.abs(p.y-q.y));
+      if(q.type==='pole'){ if(p.id<q.id&&d<=POLE_LINK){ uni(p,q); G.links.push([p,q]); } }
+      else if(d<=POLE_REACH){ uni(p,q); G.links.push([p,q]); }
+    }
+  }
+  const map=new Map(); G.nets=[];
+  for(const n of nodes){
+    const r=find(n); let net=map.get(r);
+    if(!net){ net={cap:0,dem:0,sat:0,load:0}; map.set(r,net); G.nets.push(net); }
+    n.net=net;
+  }
+}
+function step(dt){
+  G.time+=dt;
+  if(G.netDirty){ rebuildNets(); G.netDirty=false; }
+  for(const n of G.nets){ n.cap=0; n.dem=0; }
+  for(const b of G.blds){
+    if(!b.net) continue;
+    if(b.type==='generator'){ if(b.fuel) b.net.cap+=GEN_KW; }
+    else if(b.type==='solar') b.net.cap+=SOLAR_KW;
+    else if(b.want) b.net.dem+=KW[b.type];
+  }
+  for(const n of G.nets){
+    n.sat=n.dem<=0?(n.cap>0?1:0):Math.min(1,n.cap/n.dem);
+    n.load=n.cap>0?Math.min(1,n.dem/n.cap):0;
+  }
+  const mul=1+0.1*(G.level-1);
+  for(const b of G.blds){
+    switch(b.type){
+      case 'conveyor': updConveyor(b,dt); break;
+      case 'drill': updDrill(b,dt,mul); break;
+      case 'splitter': updSplitter(b); break;
+      case 'smelter': updSmelter(b,dt,b.net.sat); break;
+      case 'assembler': updAssembler(b,dt,b.net.sat); break;
+      case 'generator': updGenerator(b,dt,b.net); break;
+    }
+  }
+}
+
+function resetWorld(){
+  G.blds=[]; G.occ=new Map(); G.stock={iron_ore:70,coal:6}; G.level=1; G.delivered={};
+  G.nets=[]; G.links=[]; G.netDirty=true; G.nextId=1; G.time=0;
+  G.hub=addBld('hub',0,0,0);
+}
+function serialize(){
+  return {v:1,level:G.level,delivered:G.delivered,stock:G.stock,
+    blds:G.blds.filter(b=>b.type!=='hub').map(b=>({t:b.type,x:b.x,y:b.y,d:b.dir,r:b.recipe}))};
+}
+function loadState(s){
+  resetWorld();
+  G.level=Math.max(1,s.level|0||1); G.delivered=Object.assign({},s.delivered||{});
+  G.stock=Object.assign({},s.stock||{});
+  for(const o of s.blds||[]){
+    if(!BT[o.t]||o.t==='hub'||!Number.isFinite(o.x)||!Number.isFinite(o.y)) continue;
+    if(G.occ.has(key(o.x,o.y))) continue;
+    const b=addBld(o.t,o.x,o.y,(o.d|0)&3);
+    if(b.type==='assembler'&&RECIPES[o.r]) b.recipe=o.r;
+  }
+}
+//#SIM-END
+// ===== Rendering =====
+const PAL={conv:'#3c4a46',convEdge:'#566a64',drill:'#d19a2e',splitter:'#78a6a3',smelter:'#c85d43',gen:'#dcc43c',pole:'#d3dad5',asm:'#4f93b6',hub:'#f2a93b'};
+const RESBG={iron_ore:'rgba(141,162,184,.2)',copper_ore:'rgba(207,122,67,.24)',coal:'rgba(0,0,0,.34)'};
+function rr(c,x,y,w,h,r){c.beginPath();if(c.roundRect)c.roundRect(x,y,w,h,r);else c.rect(x,y,w,h);}
+
+function drawItem(c,type,cx,cy,r){
+  const d=ITEMS[type]; if(!d) return;
+  c.fillStyle=d.color; c.strokeStyle='rgba(0,0,0,.6)'; c.lineWidth=Math.max(1,r*0.2);
+  switch(d.shape){
+    case 'ore':
+      c.beginPath();
+      for(let i=0;i<6;i++){const a=i*Math.PI/3+0.3,q=r*(i%2?0.8:1);c.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q);}
+      c.closePath(); c.fill(); c.stroke();
+      c.fillStyle='rgba(255,255,255,.3)'; c.fillRect(cx-r*0.4,cy-r*0.5,r*0.45,r*0.25); break;
+    case 'plate':
+      c.beginPath(); c.rect(cx-r,cy-r*0.6,r*2,r*1.2); c.fill(); c.stroke();
+      c.fillStyle='rgba(255,255,255,.4)'; c.fillRect(cx-r*0.8,cy-r*0.4,r*1.2,r*0.22); break;
+    case 'gear':
+      c.beginPath();
+      for(let i=0;i<16;i++){const a=i*Math.PI/8,q=(i%4<2?1:0.72)*r;c.lineTo(cx+Math.cos(a)*q,cy+Math.sin(a)*q);}
+      c.closePath(); c.fill(); c.stroke();
+      c.fillStyle='rgba(0,0,0,.65)'; c.beginPath(); c.arc(cx,cy,r*0.25,0,TAU); c.fill(); break;
+    case 'circuit':
+      c.beginPath(); c.rect(cx-r*0.85,cy-r*0.85,r*1.7,r*1.7); c.fill(); c.stroke();
+      c.fillStyle='#f0d27a'; for(const [a,b] of [[-0.4,-0.4],[0.4,-0.4],[0,0.4]]){c.fillRect(cx+a*r-r*0.14,cy+b*r-r*0.14,r*0.28,r*0.28);} break;
+    case 'motor':
+      c.beginPath(); c.arc(cx,cy,r,0,TAU); c.fill(); c.stroke();
+      c.fillStyle='rgba(0,0,0,.55)'; c.beginPath(); c.arc(cx,cy,r*0.5,0,TAU); c.fill();
+      c.fillStyle=d.color; c.beginPath(); c.arc(cx,cy,r*0.22,0,TAU); c.fill(); break;
+  }
+}
+
+function drawBld(c,b,x,y,s,t){
+  const lw=Math.max(1,s*0.045), cx=x+s/2, cy=y+s/2;
+  const body=(fill,stroke,r)=>{rr(c,x+s*0.05,y+s*0.05,s*0.9,s*0.9,s*(r||0.1));c.fillStyle=fill;c.fill();c.strokeStyle=stroke;c.lineWidth=lw*1.4;c.stroke();};
+  switch(b.type){
+    case 'conveyor':{
+      body(PAL.conv,PAL.convEdge,0.12);
+      c.save(); c.translate(cx,cy); c.rotate((b.dir||0)*Math.PI/2);
+      c.strokeStyle='rgba(190,215,205,.55)'; c.lineWidth=Math.max(1.2,s*0.07); c.lineCap='round'; c.lineJoin='round';
+      const ph=(t*CONV_SPEED/0.8)%1;
+      for(let k=0;k<2;k++){const p=((ph+k*0.5)%1-0.5)*s*0.8;c.beginPath();c.moveTo(p-s*0.1,-s*0.17);c.lineTo(p+s*0.06,0);c.lineTo(p-s*0.1,s*0.17);c.stroke();}
+      c.restore(); break;
+    }
+    case 'drill':{
+      body('#2a3330',PAL.drill);
+      c.strokeStyle=PAL.drill; c.lineWidth=lw*1.3; c.beginPath(); c.arc(cx,cy,s*0.27,0,TAU); c.stroke();
+      c.save(); c.translate(cx,cy); c.rotate(b.active?t*3:0.4); c.lineWidth=lw*1.7; c.lineCap='round';
+      for(let i=0;i<4;i++){c.rotate(Math.PI/2);c.beginPath();c.moveTo(s*0.06,0);c.lineTo(s*0.22,0);c.stroke();}
+      c.restore(); break;
+    }
+    case 'splitter':{
+      body('#26302f',PAL.splitter);
+      c.strokeStyle=PAL.splitter; c.lineWidth=lw*1.6; c.lineCap='round'; c.beginPath();
+      for(const [dx,dy] of DIRS){c.moveTo(cx,cy);c.lineTo(cx+dx*s*0.3,cy+dy*s*0.3);}
+      c.stroke(); c.fillStyle=PAL.splitter; c.beginPath(); c.arc(cx,cy,s*0.1,0,TAU); c.fill(); break;
+    }
+    case 'smelter':{
+      body('#4a2a24',PAL.smelter);
+      const act=!!b.cur&&b.sat>0, gx=x+s*0.25, gy=y+s*0.45, gw=s*0.5, gh=s*0.36;
+      c.fillStyle=act?'#ffb04a':'#1b1210'; rr(c,gx,gy,gw,gh,s*0.06); c.fill();
+      if(act){c.globalAlpha=0.35+0.2*Math.sin(t*9);c.fillStyle='#ffd98a';c.fillRect(gx+gw*0.15,gy+gh*0.2,gw*0.7,gh*0.5);c.globalAlpha=1;}
+      c.fillStyle=PAL.smelter; c.fillRect(x+s*0.4,y+s*0.15,s*0.2,s*0.2); break;
+    }
+    case 'generator':{
+      body('#2b2a17',PAL.gen);
+      if(b.lit){c.fillStyle='rgba(255,226,90,'+(0.12+0.08*Math.sin(t*6))+')';c.fillRect(x+s*0.05,y+s*0.05,s*0.9,s*0.9);}
+      c.fillStyle=b.lit?'#ffe35a':PAL.gen; c.beginPath();
+      for(const [px,py] of [[0.58,0.14],[0.30,0.54],[0.48,0.54],[0.40,0.86],[0.70,0.44],[0.52,0.44],[0.62,0.14]]) c.lineTo(x+s*px,y+s*py);
+      c.closePath(); c.fill(); break;
+    }
+    case 'pole':{
+      c.fillStyle='rgba(242,169,59,.2)'; c.beginPath(); c.arc(cx,cy,s*0.3,0,TAU); c.fill();
+      c.fillStyle=PAL.pole; c.beginPath(); c.arc(cx,cy,s*0.13,0,TAU); c.fill();
+      c.strokeStyle=PAL.pole; c.lineWidth=lw*1.4; c.lineCap='round'; c.beginPath();
+      c.moveTo(cx-s*0.22,cy-s*0.22); c.lineTo(cx+s*0.22,cy-s*0.22); c.moveTo(cx,cy-s*0.22); c.lineTo(cx,cy+s*0.3); c.stroke(); break;
+    }
+    case 'assembler':{
+      body('#1f3340',PAL.asm);
+      c.save(); c.translate(cx,cy); c.rotate((b.cur&&b.sat>0)?t*1.5:0); c.fillStyle=PAL.asm; c.beginPath();
+      for(let i=0;i<16;i++){const a=i*Math.PI/8,q=(i%4<2?0.3:0.22)*s;c.lineTo(Math.cos(a)*q,Math.sin(a)*q);}
+      c.closePath(); c.fill(); c.restore();
+      c.fillStyle='#1f3340'; c.beginPath(); c.arc(cx,cy,s*0.15,0,TAU); c.fill();
+      drawItem(c,RECIPES[b.recipe||'gear'].out,cx,cy,s*0.1); break;
+    }
+    case 'solar':{
+      body('#16283f','#5b8fd0',0.06);
+      c.strokeStyle='rgba(140,185,240,.55)'; c.lineWidth=Math.max(1,s*0.03); c.beginPath();
+      for(let i=1;i<3;i++){const o=0.05+0.3*i;c.moveTo(x+s*o,y+s*0.08);c.lineTo(x+s*o,y+s*0.92);c.moveTo(x+s*0.08,y+s*o);c.lineTo(x+s*0.92,y+s*o);}
+      c.stroke(); break;
+    }
+    case 'hub':{
+      const z=s*3;
+      rr(c,x+s*0.1,y+s*0.1,z-s*0.2,z-s*0.2,s*0.18); c.fillStyle='#211d16'; c.fill();
+      c.strokeStyle=PAL.hub; c.lineWidth=s*0.12; c.stroke();
+      const p=0.5+0.5*Math.sin(t*2);
+      c.fillStyle='rgba(242,169,59,'+(0.1+0.09*p)+')'; c.fillRect(x+s*0.45,y+s*0.45,z-s*0.9,z-s*0.9);
+      c.strokeStyle='rgba(242,169,59,.5)'; c.lineWidth=lw; c.strokeRect(x+s*0.45,y+s*0.45,z-s*0.9,z-s*0.9);
+      c.fillStyle=PAL.hub;
+      for(let i=0;i<3;i++){const o=s*(i+0.5);
+        for(let q=0;q<4;q++){c.save();c.translate(x+z/2,y+z/2);c.rotate(q*Math.PI/2);c.translate(-z/2+o,-z/2+s*0.2);
+          c.beginPath();c.moveTo(-s*0.1,-s*0.06);c.lineTo(s*0.1,-s*0.06);c.lineTo(0,s*0.1);c.closePath();c.fill();c.restore();}}
+      c.font=(s*0.5)+'px "Russo One",Impact,sans-serif'; c.textAlign='center'; c.textBaseline='middle';
+      c.fillText('ХАБ',x+z/2,y+z/2); break;
+    }
+  }
+  if(b.want&&b.sat===0&&((t*2)%2)<1){
+    c.fillStyle='#ee6a55'; c.beginPath(); c.arc(x+s*0.85,y+s*0.15,s*0.09,0,TAU); c.fill();
+  }
+}
+
+const iconCache={};
+function itemIcon(type){
+  const k='i'+type; if(iconCache[k]) return iconCache[k];
+  const cv=document.createElement('canvas'); cv.width=cv.height=40;
+  drawItem(cv.getContext('2d'),type,20,20,13); return iconCache[k]=cv.toDataURL();
+}
+function bldIcon(type){
+  const k='b'+type; if(iconCache[k]) return iconCache[k];
+  const cv=document.createElement('canvas'); cv.width=cv.height=64;
+  const g=cv.getContext('2d'); drawBld(g,{type,dir:0},4,4,56,0); return iconCache[k]=cv.toDataURL();
+}
+
+// ===== Camera and frame drawing =====
+const cv=document.getElementById('map'), ctx=cv.getContext('2d');
+let W=0,H=0,dpr=1;
+const cam={x:0.5,y:0.5,z:42};
+const fx=[];
+let tool='select', rot=0, sel=null, hoverCell=null;
+function resize(){
+  dpr=Math.min(window.devicePixelRatio||1,2);
+  const r=cv.getBoundingClientRect(); W=r.width; H=r.height;
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+}
+const toTile=(px,py)=>[Math.floor((px-W/2)/cam.z+cam.x),Math.floor((py-H/2)/cam.z+cam.y)];
+function zoomAt(px,py,f){
+  const nz=Math.max(16,Math.min(96,cam.z*f));
+  const wx=(px-W/2)/cam.z+cam.x, wy=(py-H/2)/cam.z+cam.y;
+  cam.z=nz; cam.x=wx-(px-W/2)/cam.z; cam.y=wy-(py-H/2)/cam.z;
+}
+
+function draw(now){
+  const c=ctx, t=now/1000, S=cam.z;
+  c.setTransform(dpr,0,0,dpr,0,0);
+  c.fillStyle='#27312e'; c.fillRect(0,0,W,H);
+  const ox=W/2-cam.x*S, oy=H/2-cam.y*S;
+  const x0=Math.floor(cam.x-W/2/S)-1, x1=Math.ceil(cam.x+W/2/S)+1, y0=Math.floor(cam.y-H/2/S)-1, y1=Math.ceil(cam.y+H/2/S)+1;
+  for(let y=y0;y<=y1;y++){
+    for(let x=x0;x<=x1;x++){
+      const r=resAt(x,y); if(!r) continue;
+      const px=x*S+ox, py=y*S+oy;
+      c.fillStyle=RESBG[r]; c.fillRect(px,py,S+0.6,S+0.6);
+      if(S>=22){
+        c.fillStyle=ITEMS[r].color; c.strokeStyle='rgba(0,0,0,.5)'; c.lineWidth=1;
+        for(let k=0;k<3;k++){
+          const qx=px+S*(0.15+0.7*hash2(x,y,10+k)), qy=py+S*(0.15+0.7*hash2(x,y,20+k)), q=S*(0.06+0.04*hash2(x,y,30+k));
+          c.beginPath(); c.moveTo(qx-q,qy); c.lineTo(qx,qy-q); c.lineTo(qx+q,qy); c.lineTo(qx,qy+q); c.closePath(); c.fill();
+        }
+      }
+    }
+  }
+  if(S>=20){
+    c.strokeStyle='#313d39'; c.lineWidth=1; c.beginPath();
+    for(let x=x0;x<=x1+1;x++){const px=Math.round(x*S+ox)+0.5;c.moveTo(px,0);c.lineTo(px,H);}
+    for(let y=y0;y<=y1+1;y++){const py=Math.round(y*S+oy)+0.5;c.moveTo(0,py);c.lineTo(W,py);}
+    c.stroke();
+  }
+  // power links
+  if(G.links.length){
+    c.strokeStyle='rgba(242,169,59,.5)'; c.lineWidth=Math.max(1,S*0.05); c.beginPath();
+    for(const [a,b] of G.links){c.moveTo((a.x+0.5)*S+ox,(a.y+0.5)*S+oy);c.lineTo((b.x+0.5)*S+ox,(b.y+0.5)*S+oy);}
+    c.stroke();
+  }
+  // buildings
+  const vis=[];
+  for(const b of G.blds){
+    const off=b.w===3?1:0, px=(b.x-off)*S+ox, py=(b.y-off)*S+oy, z=b.w*S;
+    if(px>W||py>H||px+z<0||py+z<0) continue;
+    drawBld(c,b,px,py,S,t); vis.push(b);
+  }
+  // items on belts
+  for(const b of vis){
+    if(b.type!=='conveyor') continue;
+    const [dx,dy]=DIRS[b.dir];
+    for(const it of b.items) drawItem(c,it.type,(b.x+0.5+dx*(it.t-0.5))*S+ox,(b.y+0.5+dy*(it.t-0.5))*S+oy,S*0.17);
+  }
+  // selection
+  if(sel&&G.blds.includes(sel)){
+    const off=sel.w===3?1:0;
+    c.strokeStyle='#f2a93b'; c.lineWidth=2; c.setLineDash([6,4]);
+    c.strokeRect((sel.x-off)*S+ox+1,(sel.y-off)*S+oy+1,sel.w*S-2,sel.w*S-2); c.setLineDash([]);
+    if(sel.type==='pole') rangeBox(c,sel.x,sel.y,S,ox,oy);
+  }
+  // ghost
+  if(hoverCell){
+    const [hx,hy]=hoverCell, px=hx*S+ox, py=hy*S+oy;
+    if(BT[tool]&&tool!=='hub'){
+      const v=canPlace(tool,hx,hy), ok=v.ok&&unlocked(tool);
+      c.globalAlpha=0.7; drawBld(c,{type:tool,dir:rot,recipe:'gear'},px,py,S,t); c.globalAlpha=1;
+      if(!ok){c.fillStyle='rgba(238,106,85,.4)';c.fillRect(px,py,S,S);}
+      if(tool==='pole') rangeBox(c,hx,hy,S,ox,oy);
+      if(tool==='drill'||tool==='conveyor'){ c.strokeStyle='rgba(255,255,255,.35)'; c.lineWidth=1; c.strokeRect(px+0.5,py+0.5,S-1,S-1); }
+    }else{
+      c.strokeStyle=tool==='erase'?'#ee6a55':'rgba(255,255,255,.4)'; c.lineWidth=2; c.strokeRect(px+1,py+1,S-2,S-2);
+    }
+  }
+  // floaters
+  for(let i=fx.length-1;i>=0;i--){
+    const f=fx[i], a=(now-f.t0)/900;
+    if(a>=1){fx.splice(i,1);continue;}
+    c.globalAlpha=1-a; c.fillStyle=f.color; c.font='500 '+Math.max(12,S*0.3)+'px "IBM Plex Mono",monospace'; c.textAlign='center'; c.textBaseline='middle';
+    c.fillText(f.text,(f.x+0.5)*S+ox,(f.y+0.5-a*0.8)*S+oy); c.globalAlpha=1;
+  }
+}
+function rangeBox(c,x,y,S,ox,oy){
+  c.fillStyle='rgba(242,169,59,.06)'; c.strokeStyle='rgba(242,169,59,.5)'; c.lineWidth=1.5; c.setLineDash([5,4]);
+  const r=POLE_REACH;
+  c.fillRect((x-r)*S+ox,(y-r)*S+oy,(2*r+1)*S,(2*r+1)*S); c.strokeRect((x-r)*S+ox,(y-r)*S+oy,(2*r+1)*S,(2*r+1)*S); c.setLineDash([]);
+}
+// ===== UI =====
+const $=id=>document.getElementById(id);
+const TOOLS=[
+  {id:'select',name:'Курсор',key:'Q'},
+  {id:'conveyor',key:'1'},{id:'drill',key:'2'},{id:'splitter',key:'3'},{id:'smelter',key:'4'},
+  {id:'generator',key:'5'},{id:'pole',key:'6'},{id:'assembler',key:'7'},{id:'solar',key:'8'},
+  {id:'erase',name:'Снос',key:'X'}
+];
+const SVG_SELECT='<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 5l14 9-6 1.5L19.5 24l-3 1.2-2.6-8.4L9 21z"/></svg>';
+const SVG_ERASE='<svg viewBox="0 0 32 32" fill="none" stroke="#ee6a55" stroke-width="3" stroke-linecap="round"><path d="M9 9l14 14M23 9L9 23"/></svg>';
+let hintOff=false, infoLive=null, toastTimer=0, hudSig='';
+
+function toast(msg,kind){
+  const el=$('toast'); el.textContent=msg; el.className=kind||''; el.hidden=false;
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{el.hidden=true;},kind==='big'?4800:2000);
+}
+function buildToolbar(){
+  $('toolbar').innerHTML=TOOLS.map(t=>{
+    const icon=t.id==='select'?SVG_SELECT:t.id==='erase'?SVG_ERASE:'<img alt="" src="'+bldIcon(t.id)+'">';
+    const nm=t.name||BT[t.id].name;
+    return '<button class="tool" data-tool="'+t.id+'" title="'+nm+'">'+icon+'<span class="tn">'+nm+'</span><span class="tk"></span></button>';
+  }).join('');
+  refreshToolbar();
+}
+function refreshToolbar(){
+  for(const b of $('toolbar').children){
+    const id=b.dataset.tool, def=TOOLS.find(t=>t.id===id), lock=BT[id]&&!unlocked(id);
+    b.classList.toggle('on',id===tool); b.classList.toggle('locked',!!lock);
+    b.querySelector('.tk').textContent=lock?'УР '+BT[id].unlock:def.key;
+  }
+}
+function setTool(id){
+  if(BT[id]&&!unlocked(id)){toast('Откроется на уровне '+BT[id].unlock);return;}
+  tool=id; if(id!=='select') sel=null;
+  refreshToolbar(); renderInfo();
+}
+function selectBld(b){sel=b;renderInfo();}
+
+function costChips(cost){
+  return '<div class="costs">'+Object.keys(cost).map(k=>
+    '<span class="chip" data-k="'+k+'"><img alt="" src="'+itemIcon(k)+'"><b>'+cost[k]+'</b><i></i></span>').join('')+'</div>';
+}
+function hintText(){
+  const l=G.level;
+  if(l===1) return 'Поставь бур (2) на цветную жилу и проведи конвейер (1) до хаба. Жилы бесконечные.';
+  if(l===2) return 'Нужна плавильня (4) и ток: генератор (5) жжёт уголь, столб (6) собирает сеть.';
+  if(l===3) return 'Сборщик (7): кликни по нему и выбери рецепт. Шестерни делаются из железных пластин.';
+  if(l===4) return 'Платы собираются из железа и меди. Сведи две линии в один сборщик.';
+  if(l===5) return 'Мотор: две шестерни и плата. Собери цепочку из нескольких сборщиков.';
+  return 'Расширяй производство. Карта бесконечна, жилы есть за каждым поворотом.';
+}
+function statusOf(b){
+  switch(b.type){
+    case 'drill': return b.active?'Добывает: '+ITEMS[b.res].name+' ('+(DRILL_RATE*(1+0.1*(G.level-1))).toFixed(2)+' в сек)':'Выход занят, некуда класть';
+    case 'smelter': case 'assembler':
+      if(b.cur&&b.net.sat===0) return 'Нет питания';
+      if(b.cur) return 'Работает'+(b.net.sat<1?' на '+Math.round(b.net.sat*100)+'% мощности':'');
+      if(b.want&&b.net.sat===0) return 'Нет питания';
+      if(b.out.length>=4) return 'Выход забит';
+      return 'Ждёт сырьё';
+    case 'generator': return b.lit?'Горит, '+b.coal+' угля в запасе':(b.coal>0||b.burn>0?'Ждёт нагрузку':'Нет угля');
+    case 'solar': return 'Даёт '+SOLAR_KW+' кВт';
+    case 'pole': return 'Узел сети';
+    case 'splitter': return 'Раздаёт по сторонам';
+    case 'conveyor': return 'Предметов на ленте: '+b.items.length;
+    case 'hub': return 'Уровень '+G.level;
+  }
+  return '';
+}
+function netText(b){
+  if(!b.net) return '';
+  return 'Сеть: выработка '+Math.round(b.net.cap)+' кВт, нагрузка '+Math.round(b.net.dem)+' кВт';
+}
+function renderInfo(){
+  const el=$('info'); infoLive=null;
+  if(tool==='erase'){
+    el.innerHTML='<div class="ih"><b>Снос</b></div><p>Нажимай или води по постройкам. Стоимость и содержимое вернутся на склад.</p>';
+    el.hidden=false; return;
+  }
+  if(tool!=='select'){
+    const d=BT[tool];
+    el.innerHTML='<div class="ih"><img alt="" src="'+bldIcon(tool)+'"><b>'+d.name+'</b></div><p>'+d.desc+'</p>'+costChips(d.cost);
+    infoLive=()=>{for(const ch of el.querySelectorAll('.chip')){const k=ch.dataset.k,have=G.stock[k]||0;
+      ch.classList.toggle('bad',have<d.cost[k]);ch.querySelector('i').textContent='/ '+have;}};
+    infoLive(); el.hidden=false; return;
+  }
+  if(sel&&G.blds.includes(sel)){
+    const b=sel, d=BT[b.type];
+    let h='<button class="xbtn" data-act="close" aria-label="Закрыть">×</button><div class="ih"><img alt="" src="'+bldIcon(b.type)+'"><b>'+d.name+'</b></div>';
+    h+='<p class="st" id="stat"></p>';
+    if(POWER[b.type]&&b.type!=='pole') h+='<p class="rd" id="pow"></p>'; else if(b.type==='pole') h+='<p class="rd" id="pow"></p>';
+    if(b.type==='assembler'){
+      h+='<div class="acts">'+Object.keys(RECIPES).map(k=>{const r=RECIPES[k];
+        return '<button class="btn rec'+(b.recipe===k?' on':'')+'" data-act="recipe" data-v="'+k+'"><img alt="" src="'+itemIcon(k)+'">'+r.name+'</button>';}).join('')+'</div>';
+      h+='<p class="rd" id="rdesc"></p>';
+    }
+    h+='<div class="acts">';
+    if(b.type==='conveyor') h+='<button class="btn" data-act="rotate">Повернуть (R)</button>';
+    if(b.type!=='hub') h+='<button class="btn danger" data-act="remove">Снести</button>';
+    h+='</div>';
+    if(b.type==='hub') h+='<p class="rd">'+d.desc+'</p>';
+    el.innerHTML=h; el.hidden=false;
+    infoLive=()=>{
+      $('stat').textContent=statusOf(b);
+      const p=$('pow'); if(p) p.textContent=netText(b);
+      const rd=$('rdesc'); if(rd){const r=RECIPES[b.recipe]; rd.textContent=Object.keys(r.in).map(k=>r.in[k]+' × '+ITEMS[k].name).join(' + ')+' → '+ITEMS[r.out].name+', '+r.time+' с';}
+    };
+    infoLive(); return;
+  }
+  if(!hintOff){
+    el.innerHTML='<button class="xbtn" data-act="hint" aria-label="Скрыть подсказку">×</button><p style="margin:0 24px 0 0">'+hintText()+'</p>';
+    el.hidden=false;
+  }else el.hidden=true;
+}
+$('info').addEventListener('click',e=>{
+  const a=e.target.closest('[data-act]'); if(!a) return;
+  const act=a.dataset.act;
+  if(act==='close') selectBld(null);
+  else if(act==='hint'){hintOff=true;renderInfo();}
+  else if(act==='rotate') rotateCmd();
+  else if(act==='remove'){if(sel){removeBld(sel);sel=null;renderInfo();}}
+  else if(act==='recipe'&&sel){setRecipe(sel,a.dataset.v);renderInfo();}
+});
+$('toolbar').addEventListener('click',e=>{const b=e.target.closest('.tool');if(b)setTool(b.dataset.tool);});
+
+function rotateCmd(){
+  if(tool==='conveyor') rot=(rot+1)&3;
+  else if(sel&&sel.type==='conveyor') sel.dir=(sel.dir+1)&3;
+}
+
+function updateHud(force){
+  const g=goalsFor(G.level);
+  const sig=G.level+'|'+Object.keys(g).map(k=>k+':'+Math.min(g[k],G.delivered[k]||0)).join(',');
+  $('lvl').textContent=G.level;
+  if(sig!==hudSig||force){
+    hudSig=sig;
+    $('goals').innerHTML=Object.keys(g).map(k=>{
+      const v=Math.min(g[k],G.delivered[k]||0), pct=Math.round(v/g[k]*100);
+      return '<li><img alt="" src="'+itemIcon(k)+'"><span class="gn">'+ITEMS[k].name+'</span><span class="gv">'+v+' / '+g[k]+'</span><span class="bar"><i style="width:'+pct+'%"></i></span></li>';
+    }).join('');
+    const nx=Object.keys(BT).filter(k=>BT[k].unlock===G.level+1).map(k=>BT[k].name);
+    $('perk').textContent='Скорость буров ×'+(1+0.1*(G.level-1)).toFixed(1)+'. '+(nx.length?'Следующий уровень откроет: '+nx.join(', ')+'.':'Каждый уровень добавляет +10% к скорости буров.');
+  }
+  const keys=Object.keys(ITEMS).filter(k=>(G.stock[k]||0)>0);
+  $('stock').innerHTML=keys.length?keys.map(k=>'<span class="sc" title="'+ITEMS[k].name+'"><img alt="" src="'+itemIcon(k)+'">'+G.stock[k]+'</span>').join(''):'<span class="empty">Пусто. Кликни по жиле курсором, чтобы добыть руду вручную.</span>';
+}
+hooks.levelUp=lvl=>{
+  const nx=Object.keys(BT).filter(k=>BT[k].unlock===lvl).map(k=>BT[k].name);
+  toast('Уровень '+lvl+'!\n'+(nx.length?'Открыто: '+nx.join(', ')+'\n':'')+'Скорость буров ×'+(1+0.1*(lvl-1)).toFixed(1),'big');
+  refreshToolbar(); updateHud(true); renderInfo();
+};
+
+// ===== Input =====
+const ptrs=new Map(), keys=new Set();
+let mode='none', pinch=null, lastCell=null, dragFail=false;
+const pos=e=>{const r=cv.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};};
+const dirOf=(a,b)=>DIRS.findIndex(d=>d[0]===b[0]-a[0]&&d[1]===b[1]-a[1]);
+function walk(a,b){
+  const out=[]; let x=a[0],y=a[1];
+  while(x!==b[0]){x+=Math.sign(b[0]-x);out.push([x,y]);}
+  while(y!==b[1]){y+=Math.sign(b[1]-y);out.push([x,y]);}
+  return out;
+}
+function failMsg(r){ if(!dragFail){dragFail=true;toast(r.reason,'bad');} }
+function buildTo(cell){
+  if(lastCell&&lastCell[0]===cell[0]&&lastCell[1]===cell[1]) return;
+  const cells=lastCell?walk(lastCell,cell):[cell];
+  for(const cl of cells){
+    if(tool==='conveyor'){
+      let dir=rot;
+      if(lastCell){
+        dir=dirOf(lastCell,cl);
+        const pb=bldAt(lastCell[0],lastCell[1]);
+        if(pb&&pb.type==='conveyor'){pb.dir=dir;}
+        rot=dir;
+      }
+      const ex=bldAt(cl[0],cl[1]);
+      if(!ex){const r=placeBld('conveyor',cl[0],cl[1],dir);if(!r.ok)failMsg(r);}
+      else if(ex.type==='conveyor') ex.dir=dir;
+    }else{
+      const r=placeBld(tool,cl[0],cl[1],rot); if(!r.ok&&r.reason!=='Клетка занята') failMsg(r);
+    }
+    lastCell=cl;
+  }
+}
+function eraseAt(cell){
+  const b=bldAt(cell[0],cell[1]);
+  if(b&&b.type!=='hub'){removeBld(b);if(sel===b)sel=null;}
+}
+function clickAt(p){
+  const [x,y]=toTile(p.sx,p.sy), b=bldAt(x,y);
+  if(b){selectBld(b);return;}
+  const r=resAt(x,y);
+  if(r){G.stock[r]=(G.stock[r]||0)+1;fx.push({x,y,text:'+1',color:ITEMS[r].color==='#2b2f33'?'#9aa7a0':ITEMS[r].color,t0:performance.now()});}
+  selectBld(null);
+}
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',e=>{
+  e.preventDefault(); try{cv.setPointerCapture(e.pointerId);}catch(_){}
+  const p=pos(e);
+  ptrs.set(e.pointerId,{x:p.x,y:p.y,sx:p.x,sy:p.y,btn:e.button,moved:false});
+  if(ptrs.size>=2){
+    const [a,b]=[...ptrs.values()];
+    pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,mx:(a.x+b.x)/2,my:(a.y+b.y)/2}; mode='pinch'; return;
+  }
+  hoverCell=toTile(p.x,p.y);
+  if(e.button===1||e.button===2){mode='pan';return;}
+  if(tool==='select'){mode='click';return;}
+  if(tool==='erase'){mode='erase';eraseAt(hoverCell);return;}
+  mode='build'; dragFail=false; lastCell=null; buildTo(hoverCell);
+});
+cv.addEventListener('pointermove',e=>{
+  const np=pos(e), p=ptrs.get(e.pointerId);
+  if(e.pointerType==='mouse'||p) hoverCell=toTile(np.x,np.y);
+  if(!p) return;
+  const dx=np.x-p.x, dy=np.y-p.y; p.x=np.x; p.y=np.y;
+  if(Math.hypot(np.x-p.sx,np.y-p.sy)>5) p.moved=true;
+  if(mode==='pinch'&&ptrs.size>=2){
+    const [a,b]=[...ptrs.values()], d=Math.hypot(a.x-b.x,a.y-b.y)||1, mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+    zoomAt(mx,my,d/pinch.d); cam.x-=(mx-pinch.mx)/cam.z; cam.y-=(my-pinch.my)/cam.z;
+    pinch={d,mx,my};
+  }else if(mode==='click'&&p.moved){mode='pan';cam.x-=dx/cam.z;cam.y-=dy/cam.z;}
+  else if(mode==='pan'){cam.x-=dx/cam.z;cam.y-=dy/cam.z;}
+  else if(mode==='build') buildTo(hoverCell);
+  else if(mode==='erase') eraseAt(hoverCell);
+});
+function endPtr(e){
+  const p=ptrs.get(e.pointerId); ptrs.delete(e.pointerId);
+  if(p){
+    if(mode==='click'&&!p.moved&&e.type==='pointerup') clickAt(p);
+    if(mode==='pan'&&p.btn===2&&!p.moved&&tool!=='select') setTool('select');
+  }
+  if(e.pointerType!=='mouse') hoverCell=null;
+  if(ptrs.size===0) mode='none'; else if(mode==='pinch'&&ptrs.size===1) mode='ignore';
+}
+cv.addEventListener('pointerup',endPtr);
+cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&!ptrs.size)hoverCell=null;});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault(); const p=pos(e); zoomAt(p.x,p.y,Math.exp(-e.deltaY*0.0015));
+},{passive:false});
+addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  keys.add(e.code);
+  if(e.repeat) return;
+  const c=e.code;
+  if(c==='KeyR') rotateCmd();
+  else if(c==='KeyQ'||c==='Escape') setTool('select');
+  else if(c==='KeyX') setTool('erase');
+  else if(/^Digit[1-8]$/.test(c)) setTool(TOOLS[+c.slice(5)].id);
+  else if((c==='Delete'||c==='Backspace')&&sel&&tool==='select'){removeBld(sel);sel=null;renderInfo();}
+});
+addEventListener('keyup',e=>keys.delete(e.code));
+addEventListener('blur',()=>keys.clear());
+function panKeys(dt){
+  let dx=0,dy=0;
+  if(keys.has('KeyA')||keys.has('ArrowLeft'))dx-=1; if(keys.has('KeyD')||keys.has('ArrowRight'))dx+=1;
+  if(keys.has('KeyW')||keys.has('ArrowUp'))dy-=1; if(keys.has('KeyS')||keys.has('ArrowDown'))dy+=1;
+  if(dx||dy){const v=dt*600/cam.z;cam.x+=dx*v;cam.y+=dy*v;}
+}
+
+// ===== Help, save, loop =====
+$('helpBtn').addEventListener('click',()=>{
+  const h=$('help'); h.hidden=!h.hidden; $('helpBtn').setAttribute('aria-expanded',String(!h.hidden));
+});
+let resetArmed=0;
+$('resetBtn').addEventListener('click',()=>{
+  const b=$('resetBtn');
+  if(!resetArmed){resetArmed=setTimeout(()=>{resetArmed=0;b.textContent='Начать заново';},3000);b.textContent='Точно стереть завод? Нажми ещё раз';return;}
+  clearTimeout(resetArmed); resetArmed=0; b.textContent='Начать заново';
+  resetWorld(); sel=null; tool='select'; cam.x=0.5; cam.y=0.5; fitStart();
+  try{localStorage.removeItem(SAVE_KEY);}catch(_){}
+  refreshToolbar(); updateHud(true); renderInfo(); toast('Завод стёрт. Начинай с чистого листа.');
+});
+const SAVE_KEY='bz-endless-factory-v1';
+function save(){
+  try{const s=serialize();s.cam={x:cam.x,y:cam.y,z:cam.z};localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch(_){}
+}
+function fitStart(){cam.z=Math.max(26,Math.min(44,W/22));}
+function boot(){
+  resize(); resetWorld(); fitStart();
+  let seen=false;
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(raw){const s=JSON.parse(raw);loadState(s);seen=true;
+      if(s.cam&&Number.isFinite(s.cam.x)&&Number.isFinite(s.cam.y)){cam.x=s.cam.x;cam.y=s.cam.y;cam.z=Math.max(16,Math.min(96,s.cam.z||cam.z));}}
+  }catch(_){resetWorld();}
+  buildToolbar(); updateHud(true);
+  if(!seen){$('help').hidden=false;$('helpBtn').setAttribute('aria-expanded','true');}
+  renderInfo();
+}
+addEventListener('resize',resize);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+addEventListener('pagehide',save);
+
+let last=performance.now(), acc=0, uiT=0, saveT=0;
+function frame(now){
+  const dt=Math.min(0.1,(now-last)/1000); last=now; acc+=dt;
+  let n=0; while(acc>=STEP&&n<6){step(STEP);acc-=STEP;n++;} if(n===6) acc=0;
+  panKeys(dt); draw(now);
+  uiT+=dt; saveT+=dt;
+  if(uiT>=0.25){uiT=0;updateHud(false);if(infoLive)infoLive();}
+  if(saveT>=8){saveT=0;save();}
+  requestAnimationFrame(frame);
+}
+boot();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
