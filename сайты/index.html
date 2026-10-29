@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bread11 — самый хлебный хлеб</title>
+<meta name="description" content="Здесь ты найдёшь самый хлебный хлеб в своей жизни. Сайт YouTube-канала bread11 (@bread11XD)">
+<meta property="og:title" content="bread11">
+<meta property="og:description" content="Самый хлебный хлеб в твоей жизни. Подписывайся на bread11">
+<style>
+:root{
+  --blue:#2437d9; --blue-deep:#161f8f; --butter:#ffd84d; --crust:#7a3e12; --toast:#c9812f;
+  --paper:#fffdf5; --ink:#2a1608;
+  --font:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{font-family:var(--font);background:var(--blue);color:var(--paper);line-height:1.6}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--butter);outline-offset:3px}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+
+/* шапка */
+.bar{position:sticky;top:0;z-index:5;background:rgba(36,55,217,.92);backdrop-filter:blur(8px)}
+.bar .wrap{display:flex;justify-content:space-between;align-items:center;height:60px}
+.bar strong{font-size:1.15rem;letter-spacing:-.02em}
+.bar nav{display:flex;gap:20px;flex-wrap:wrap}
+.bar nav a{text-decoration:none;opacity:.85}
+.bar nav a:hover{opacity:1;text-decoration:underline}
+
+/* герой */
+.hero{padding:48px 0 80px}
+.hero .wrap{display:grid;grid-template-columns:1.6fr 1fr;gap:32px;align-items:center}
+.hero h1{font-size:clamp(3.4rem,13vw,8.5rem);line-height:.88;letter-spacing:-.05em;color:var(--butter);overflow-wrap:anywhere}
+.hero h1 span{color:var(--paper)}
+.hero p.lead{max-width:30em;margin:22px 0 30px;font-size:1.2rem}
+.btns{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-block;background:var(--butter);color:var(--crust);font-weight:700;text-decoration:none;padding:14px 26px;border-radius:999px;border:2px solid var(--butter);transition:transform .15s;cursor:pointer;font:inherit;font-weight:700}
+.btn:hover{transform:translateY(-2px)}
+.btn.ghost{background:transparent;color:var(--paper);border-color:var(--paper)}
+
+/* ломтик хлеба */
+.toaster{text-align:center}
+.slice{width:min(260px,70vw);cursor:pointer;background:none;border:0;padding:0;display:inline-block;animation:pop .9s cubic-bezier(.2,1.4,.4,1) both}
+.slice svg{width:100%;height:auto;display:block;transition:transform .2s}
+.slice:hover svg{transform:rotate(-4deg) scale(1.03)}
+.slice .inner{transition:fill .5s}
+.slice[data-level="1"] .inner{fill:#f0c46a}
+.slice[data-level="2"] .inner{fill:#d9923a}
+.slice[data-level="3"] .inner{fill:#9a5620}
+.slice[data-level="4"] .inner{fill:#3a1c0a}
+.toaster p{margin-top:12px;font-size:.95rem;min-height:1.6em}
+@keyframes pop{from{transform:translateY(60px) scale(.8);opacity:0}to{transform:none;opacity:1}}
+
+/* секции */
+section{padding:72px 0}
+.light{background:var(--paper);color:var(--ink)}
+.deep{background:var(--blue-deep)}
+h2{font-size:clamp(1.8rem,5vw,2.8rem);letter-spacing:-.03em;margin-bottom:12px;line-height:1.1}
+.sub{max-width:36em;margin-bottom:32px;opacity:.8}
+
+/* цифры */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:8px}
+.stat{border-left:4px solid var(--butter);padding-left:14px}
+.stat b{display:block;font-size:2.2rem;line-height:1.1;color:var(--butter)}
+
+/* видео */
+.videos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:24px}
+.video{text-decoration:none;color:var(--ink);display:block}
+.thumb{aspect-ratio:16/9;border-radius:14px;border:3px solid var(--crust);overflow:hidden;background:var(--butter);display:grid;place-items:center;font-size:2.6rem;color:var(--crust);position:relative}
+.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.video h3{margin-top:10px;font-size:1.05rem;line-height:1.3}
+.video small{opacity:.7}
+.video:hover h3{text-decoration:underline}
+.more{margin-top:32px}
+.more .btn{background:var(--crust);border-color:var(--crust);color:var(--paper)}
+
+/* о канале */
+.about{display:grid;grid-template-columns:1.2fr 1fr;gap:40px}
+.about p+p{margin-top:14px}
+.tags{display:flex;flex-wrap:wrap;gap:10px;list-style:none;padding:0;margin-top:20px}
+.tags li{background:var(--blue);padding:8px 16px;border-radius:999px}
+.schedule{background:var(--blue);border-radius:16px;padding:24px}
+.schedule h3{margin-bottom:12px}
+.schedule dl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px}
+.schedule dt{color:var(--butter);font-weight:700}
+
+/* ссылки */
+.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.link{display:block;text-decoration:none;background:var(--paper);color:var(--ink);padding:20px;border-radius:14px;border:3px solid var(--crust);transition:transform .15s}
+.link:hover{transform:translateY(-3px)}
+.link b{display:block;font-size:1.15rem}
+
+/* faq */
+details{border-bottom:2px solid rgba(255,255,255,.25);padding:16px 0}
+summary{cursor:pointer;font-weight:700;font-size:1.1rem}
+details p{margin-top:10px;max-width:40em;opacity:.9}
+
+footer{background:var(--ink);color:var(--paper);padding:32px 0;text-align:center;font-size:.95rem}
+footer a{color:var(--butter)}
+
+@media (max-width:760px){
+  .hero .wrap,.about{grid-template-columns:1fr}
+  .bar nav{gap:12px;font-size:.9rem}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <strong>bread11</strong>
+    <nav>
+      <a href="#videos">Видео</a>
+      <a href="#about">О канале</a>
+      <a href="#links">Ссылки</a>
+      <a href="#faq">Вопросы</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <h1>bread<span>11</span></h1>
+      <p class="lead" id="tagline"></p>
+      <div class="btns">
+        <a class="btn" id="watch" target="_blank" rel="noopener">Смотреть на YouTube</a>
+        <a class="btn ghost" id="subscribe" target="_blank" rel="noopener">Подписаться</a>
+      </div>
+    </div>
+    <div class="toaster">
+      <button class="slice" id="slice" data-level="0" aria-label="Поджарить хлеб">
+        <svg viewBox="0 0 200 210" aria-hidden="true">
+          <path d="M40 60C10 55 5 15 50 12c20-8 40-8 50-2 10-6 30-6 50 2 45 3 40 43 10 48 8 20 6 110-8 130-8 12-30 10-52 10s-44 2-52-10C34 170 32 80 40 60z" fill="#a85a1c"/>
+          <path class="inner" d="M52 70C32 66 28 36 58 32c16-6 30-6 42 0 12-6 26-6 42 0 30 4 26 34 6 38 6 18 4 100-6 116-6 8-24 6-42 6s-36 2-42-6C48 170 46 88 52 70z" fill="#f7e2a6"/>
+          <circle cx="80" cy="90" r="3" fill="#00000022"/><circle cx="120" cy="120" r="3" fill="#00000022"/><circle cx="90" cy="150" r="3" fill="#00000022"/>
+        </svg>
+      </button>
+      <p id="toast-msg" aria-live="polite">Нажми на хлеб, чтобы поджарить</p>
+    </div>
+  </div>
+</div>
+
+<section class="deep" id="stats" hidden>
+  <div class="wrap">
+    <h2>Канал в цифрах</h2>
+    <div class="stats" id="statsBox"></div>
+  </div>
+</section>
+
+<section class="light" id="videos">
+  <div class="wrap">
+    <h2>Видео</h2>
+    <p class="sub">Лучшие и свежие ролики. Нажми на карточку, чтобы открыть видео на YouTube.</p>
+    <div class="videos" id="videosBox"></div>
+    <div class="more"><a class="btn" id="allVideos" target="_blank" rel="noopener">Все видео канала</a></div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap about">
+    <div>
+      <h2>О канале</h2>
+      <div id="aboutText"></div>
+      <ul class="tags" id="tags"></ul>
+    </div>
+    <div class="schedule">
+      <h3>Когда выходят видео</h3>
+      <dl id="schedule"></dl>
+    </div>
+  </div>
+</section>
+
+<section class="light" id="links">
+  <div class="wrap">
+    <h2>Где ещё найти</h2>
+    <p class="sub">Соцсети и места, где можно следить за новостями.</p>
+    <div class="links" id="linksBox"></div>
+  </div>
+</section>
+
+<section class="deep" id="faq">
+  <div class="wrap">
+    <h2>Частые вопросы</h2>
+    <div id="faqBox"></div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">© <span id="year"></span> bread11 · <a id="footYt" target="_blank" rel="noopener">YouTube-канал</a></div>
+</footer>
+
+<script>
+/* ====== ЗДЕСЬ МЕНЯЕШЬ ВСЁ СОДЕРЖИМОЕ САЙТА ====== */
+const SITE = {
+  channel: "https://www.youtube.com/@bread11XD",
+  tagline: "Здесь ты найдёшь самый хлебный хлеб в своей жизни.",
+
+  // Цифры (необязательно). Заполни, и блок «Канал в цифрах» появится сам.
+  // Пример: { value: "1 200", label: "подписчиков" }
+  stats: [],
+
+  // Видео: id — это то, что идёт после v= в ссылке (youtube.com/watch?v=ТУТ_ID).
+  // Пока id пустые, карточки ведут на страницу всех видео канала.
+  videos: [
+    { id: "", title: "Название видео 1", note: "Короткое описание" },
+    { id: "", title: "Название видео 2", note: "Короткое описание" },
+    { id: "", title: "Название видео 3", note: "Короткое описание" },
+    { id: "", title: "Название видео 4", note: "Короткое описание" },
+    { id: "", title: "Название видео 5", note: "Короткое описание" },
+    { id: "", title: "Название видео 6", note: "Короткое описание" }
+  ],
+
+  about: [
+    "Здесь ты найдёшь самый хлебный хлеб в своей жизни. Это канал bread11, и хлеба на нём много.",
+    "Добавь сюда пару слов о том, что именно ты снимаешь, как давно и для кого."
+  ],
+  tags: ["хлеб", "хлебушек", "bread", "bread11"],
+  schedule: [
+    ["Новые видео", "напиши, как часто выходят"],
+    ["Где анонсы", "в сообществе канала"]
+  ],
+
+  // Соцсети: добавь свои ссылки вместо «#»
+  links: [
+    { name: "YouTube", note: "Основной канал @bread11XD", url: "https://www.youtube.com/@bread11XD" },
+    { name: "Telegram", note: "Новости и закулисье", url: "#" },
+    { name: "Discord", note: "Общение со зрителями", url: "#" }
+  ],
+
+  faq: [
+    ["Что за канал?", "Самый хлебный хлеб в твоей жизни. Подписывайся и смотри."],
+    ["Как часто выходят видео?", "Напиши здесь свой график выхода видео."],
+    ["Как предложить идею для видео?", "Оставь комментарий под любым видео или напиши в соцсетях."]
+  ]
+};
+/* ====== ДАЛЬШЕ ТРОГАТЬ НЕ НУЖНО ====== */
+
+const $ = id => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.textContent = html; return e; };
+
+$("tagline").textContent = SITE.tagline;
+$("watch").href = SITE.channel;
+$("subscribe").href = SITE.channel + "?sub_confirmation=1";
+$("allVideos").href = SITE.channel + "/videos";
+$("footYt").href = SITE.channel;
+$("year").textContent = new Date().getFullYear();
+
+if (SITE.stats.length) $("stats").hidden = false;
+SITE.stats.forEach(s => {
+  const d = el("div", "stat");
+  d.append(el("b", "", s.value), el("span", "", s.label));
+  $("statsBox").append(d);
+});
+
+SITE.videos.forEach(v => {
+  const a = el("a", "video");
+  a.target = "_blank"; a.rel = "noopener";
+  a.href = v.id ? "https://www.youtube.com/watch?v=" + encodeURIComponent(v.id) : SITE.channel + "/videos";
+  const t = el("div", "thumb");
+  if (v.id) {
+    const img = document.createElement("img");
+    img.src = "https://img.youtube.com/vi/" + encodeURIComponent(v.id) + "/hqdefault.jpg";
+    img.alt = ""; img.loading = "lazy";
+    t.append(img);
+  } else { t.textContent = "▶"; }
+  a.append(t, el("h3", "", v.title), el("small", "", v.note));
+  $("videosBox").append(a);
+});
+
+SITE.about.forEach(p => $("aboutText").append(el("p", "", p)));
+SITE.tags.forEach(t => $("tags").append(el("li", "", t)));
+SITE.schedule.forEach(([k, v]) => $("schedule").append(el("dt", "", k), el("dd", "", v)));
+
+SITE.links.forEach(l => {
+  const a = el("a", "link");
+  a.href = l.url; a.target = "_blank"; a.rel = "noopener";
+  a.append(el("b", "", l.name), el("span", "", l.note));
+  $("linksBox").append(a);
+});
+
+SITE.faq.forEach(([q, a]) => {
+  const d = el("details");
+  d.append(el("summary", "", q), el("p", "", a));
+  $("faqBox").append(d);
+});
+
+/* хлебушек: каждый клик жарит сильнее */
+const msgs = [
+  "Нажми на хлеб, чтобы поджарить",
+  "Слегка подрумянился",
+  "Отличный тост!",
+  "Почти готово...",
+  "Угольки. Начинаем заново?"
+];
+const slice = $("slice");
+slice.addEventListener("click", () => {
+  const next = (+slice.dataset.level + 1) % msgs.length;
+  slice.dataset.level = next;
+  $("toast-msg").textContent = msgs[next];
+});
+</script>
+</body>
+</html>
