@@ -1,0 +1,1425 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Геномная Арена</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: одноколонный мобильный игровой экран. Липкая шапка с монетами и стадией, нижняя навигация, бой на всю ширину. */
+:root{
+  --bg:#0f1720; --surface:#17222e; --surface2:#1f2e3d; --line:#2c4054;
+  --fg:#e8eef4; --muted:#8fa3b5; --coin:#ffc857; --ink:#0a1017;
+  --fang:#ff6b57; --steel:#5aa9e6; --spore:#9bd04f; --ether:#b78cff;
+  --good:#5fd38d; --bad:#ff5d6c;
+  --font-display:'Unbounded','Arial Black',system-ui,sans-serif;
+  --font-body:'Onest','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45;
+  padding-block:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--coin);outline-offset:2px}
+.app{max-width:560px;margin:0 auto;padding-bottom:96px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.logo{font-family:var(--font-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;line-height:1.2}
+.logo small{display:block;font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.04em;color:var(--muted);text-transform:none;margin-top:2px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-family:var(--font-mono);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.dq-btn{position:relative;width:34px;height:34px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:0;color:var(--fg)}
+.dq-btn:hover{border-color:var(--muted)}
+.dq-dot{position:absolute;top:-5px;right:-5px;width:12px;height:12px;border-radius:50%;background:var(--bad);border:2px solid var(--bg);box-sizing:content-box}
+.in-battle .dq-btn{display:none}
+.strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:6px}
+.sd{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:5px 0;text-align:center;line-height:1.2}
+.sd small{display:block;font-size:10px;color:var(--muted)}
+.sd b{font-family:var(--font-mono);font-size:12px}
+.sd.got{opacity:.5}
+.sd.got b::after{content:" ✓";color:var(--good)}
+.sd.now{border-color:var(--coin);box-shadow:0 0 0 1px var(--coin);opacity:1}
+.dqs{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.dqs li{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.dqs .dq-main{flex:1;min-width:0}
+.dqs .dq-main b{font-size:14px}
+.dqs .xp{margin:6px 0 0}
+.dq-got{color:var(--good);font-size:12px;font-weight:700;white-space:nowrap}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--coin)}
+.chip.stage i{background:var(--fang);border-radius:2px;transform:rotate(45deg)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px}
+.h{font-family:var(--font-display);font-weight:700;font-size:12px;letter-spacing:.07em;text-transform:uppercase;margin:0 0 10px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+
+.btn{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-weight:600;font-size:14px;min-height:44px;transition:transform .08s,border-color .15s}
+.btn:active{transform:scale(.97)}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--coin);color:var(--ink);border-color:var(--coin);font-family:var(--font-display);font-weight:700;font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+.btn.on{border-color:var(--coin);color:var(--coin)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn[disabled]{opacity:.4;cursor:not-allowed;transform:none}
+.btn.wide{width:100%}
+.price{font-family:var(--font-mono);font-weight:700}
+
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.gridm{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
+
+.mc{position:relative;min-width:0;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:6px 6px 8px;text-align:center;cursor:pointer}
+.mc.empty{display:grid;place-items:center;min-height:130px;color:var(--muted);font-size:12px;border-style:dashed;cursor:default}
+.mc.sel{border-color:var(--coin);box-shadow:0 0 0 1px var(--coin)}
+.art{position:relative;aspect-ratio:1;max-width:100%;border-radius:8px;background:radial-gradient(closest-side at 50% 62%,color-mix(in srgb,var(--c1) 38%,transparent),transparent 100%),var(--ink);overflow:hidden}
+.art svg{width:100%;height:100%;display:block}
+.nm{font-weight:600;font-size:13px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-family:var(--font-mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.badge{position:absolute;top:4px;left:4px;z-index:2;font-family:var(--font-mono);font-size:10px;font-weight:700;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.badge.boss{background:var(--bad);color:var(--ink);border-color:var(--bad)}
+
+.gene{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:11px;font-weight:700}
+.gene::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--c)}
+.cycle{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:12px;color:var(--muted)}
+.cycle b{font-family:var(--font-mono);font-weight:500}
+
+/* бой */
+.battle{margin-top:14px}
+.field{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:6px 0}
+.field::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed var(--line)}
+.field::after{content:"VS";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--bg);padding:6px 4px;font-family:var(--font-display);font-weight:700;font-size:11px;letter-spacing:.08em;color:var(--muted)}
+.col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.col.left{align-items:flex-start}
+.col.right{align-items:flex-end}
+.col .unit{width:min(100%,118px)}
+.col.left .unit:nth-child(2){margin-left:min(14%,26px)}
+.col.right .unit:nth-child(2){margin-right:min(14%,26px)}
+.unit{position:relative;min-width:0;padding:14px 0 0;text-align:center;transition:opacity .3s}
+.unit .art{background:none;overflow:visible;border-radius:0}
+.unit .bar{width:78%;height:7px;margin:0 auto}
+.unit .nm{margin-top:4px;font-size:12px}
+.unit .stat-row{justify-content:center;gap:8px}
+.unit::before{content:"";position:absolute;left:50%;top:0;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid transparent;transform:translateX(-50%);transition:border-top-color .15s}
+.unit .art svg{animation:bob 2.6s ease-in-out infinite;transform-origin:50% 90%}
+.unit:nth-child(2) .art svg{animation-delay:-.9s}
+.unit:nth-child(3) .art svg{animation-delay:-1.7s}
+.unit.dead{opacity:.28;filter:grayscale(1)}
+.unit.dead .art svg{animation:none}
+.unit.cur::before{border-top-color:var(--coin)}
+.unit.cur .art svg{filter:drop-shadow(0 0 7px color-mix(in srgb,var(--coin) 70%,transparent))}
+.unit.tgt{cursor:pointer}
+.unit.tgt::before{border-top-color:var(--bad)}
+.unit.tgt .art svg{filter:drop-shadow(0 0 7px color-mix(in srgb,var(--bad) 75%,transparent))}
+.unit.hit .art{animation:shake .3s}
+.unit.lunge-a{animation:lungea .4s}
+.unit.lunge-f{animation:lungef .4s}
+.bar{height:6px;background:var(--ink);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:100%;background:var(--good);transition:width .4s,background .4s}
+.bar i.mid{background:var(--coin)}.bar i.low{background:var(--bad)}
+.stat-row{display:flex;justify-content:space-between;gap:4px;margin-top:3px;font-family:var(--font-mono);font-size:10px;color:var(--muted);min-height:15px}
+.stat-row .pz{color:var(--spore)}
+.pop{position:absolute;left:50%;top:26%;z-index:3;font-family:var(--font-mono);font-weight:700;font-size:19px;pointer-events:none;text-shadow:0 1px 0 #000,0 0 6px #000;animation:rise .95s ease-out forwards}
+.pop.dm{color:#fff}.pop.up{color:var(--coin)}.pop.down{color:var(--muted)}.pop.hl{color:var(--good)}.pop.pz{color:var(--spore)}
+.mid{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;text-align:center}
+.mid .rd{font-family:var(--font-display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mid .lg{font-size:14px;min-height:21px;font-weight:500}
+.hint{font-size:13px;color:var(--muted);text-align:center;margin:12px 0 8px;min-height:20px}
+.ctrl{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ctrl .btn small{display:block;font-family:var(--font-mono);font-weight:500;font-size:11px;color:var(--muted)}
+body.in-battle .tabs{display:none}
+[hidden]{display:none!important}
+
+/* нижняя навигация */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--surface);border-top:1px solid var(--line);padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.tabs div{max-width:560px;margin:0 auto;display:flex;gap:4px}
+.tab{flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:10px;padding:10px 2px;font-family:var(--font-display);font-weight:500;font-size:9.5px;letter-spacing:.04em;white-space:nowrap;text-transform:uppercase;color:var(--muted)}
+.tab.on{background:var(--surface2);border-color:var(--line);color:var(--fg)}
+
+/* окна */
+.overlay{position:fixed;inset:0;z-index:20;background:rgba(5,9,13,.8);display:flex;align-items:flex-end;justify-content:center;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet{width:100%;max-width:440px;max-height:88dvh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;animation:up .22s ease-out}
+.sheet .art{max-width:190px;margin:0 auto}
+.sheet h3{font-family:var(--font-display);font-weight:700;font-size:16px;margin:12px 0 6px;text-align:center;text-wrap:balance}
+.center{text-align:center}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.stats div{background:var(--surface2);border-radius:8px;padding:8px;text-align:center}
+.stats b{display:block;font-family:var(--font-mono);font-size:17px;font-variant-numeric:tabular-nums}
+.stats span{font-size:11px;color:var(--muted)}
+.xp{height:6px;background:var(--ink);border-radius:3px;overflow:hidden;margin:4px 0 12px}
+.xp i{display:block;height:100%;background:var(--steel)}
+.new{display:inline-block;background:var(--coin);color:var(--ink);font-family:var(--font-display);font-weight:700;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:5px}
+.list{margin:8px 0 14px;padding:0;list-style:none;display:grid;gap:4px;font-size:14px}
+.list b{font-family:var(--font-mono)}
+
+/* лаборатория */
+.pair{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);gap:8px;align-items:center;margin-bottom:12px}
+.pair .x{font-family:var(--font-mono);color:var(--muted);text-align:center;font-size:18px}
+.codex{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.cx{display:flex;align-items:center;gap:8px;min-width:0;background:var(--surface2);border-radius:8px;padding:8px 10px;font-size:13px}
+.cx .gp{display:flex;gap:3px;flex:none}
+.cx .gp i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.cx span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx.lock{color:var(--muted)}
+
+/* бинго */
+.bingo{display:grid;grid-template-columns:20px repeat(5,minmax(0,1fr));gap:4px;align-items:stretch}
+.bh{display:grid;place-items:center;min-height:20px}
+.bh i{width:12px;height:12px;border-radius:50%;background:var(--c)}
+.bc{min-width:0;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:3px 3px 4px;text-align:center}
+.bc .art{border-radius:6px}
+.bc .nm{font-size:9px;margin-top:3px;line-height:1.2}
+.bc.lock .art svg{filter:brightness(0) opacity(.3)}
+.bc.lock .nm{color:var(--muted);font-weight:500}
+.bc.won{border-color:var(--coin);box-shadow:inset 0 0 0 1px var(--coin)}
+.rwlist{display:grid;gap:8px}
+.rw{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:4px}
+.rw.done{border-color:var(--coin)}
+.rw-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.rw-top b{font-family:var(--font-display);font-size:12px;font-weight:700;letter-spacing:.02em}
+.rw.done .rw-top .meta{color:var(--coin)}
+.bingo-note{margin:12px 0;background:var(--surface2);border:1px solid var(--coin);border-radius:10px;padding:12px}
+.shop .btn.buy{margin-top:8px;width:100%;min-height:38px;padding:6px 8px;display:flex;align-items:center;justify-content:center;gap:6px}
+.shop .btn.buy::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--coin)}
+.shop.lock .art svg{filter:brightness(0) opacity(.35)}
+.shop .meta{display:flex;flex-wrap:wrap;gap:2px 8px;justify-content:center;margin-top:2px}
+
+.tab{font-size:8.5px;letter-spacing:.02em;padding:10px 1px}
+@media (max-width:359px){.tab{font-size:7.5px;letter-spacing:0}}
+/* рейтинг */
+.lb{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.lb li{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.lb .pos{flex:none;width:28px;font-family:var(--font-mono);font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.lb li:nth-child(1) .pos{color:var(--coin)}
+.lb li:nth-child(2) .pos{color:#c9d3dc}
+.lb li:nth-child(3) .pos{color:#d98e55}
+.lb .who{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb .sc{flex:none;font-family:var(--font-mono);font-weight:700;font-size:13px;color:var(--coin);font-variant-numeric:tabular-nums}
+@keyframes bob{0%,100%{transform:translateY(0) scale(1,1)}50%{transform:translateY(-3px) scale(1.02,.98)}}
+@keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}100%{transform:translateX(0)}}
+@keyframes rise{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-38px)}}
+@keyframes lungea{40%{transform:translateX(18px)}}
+@keyframes lungef{40%{transform:translateX(-18px)}}
+@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+@media (min-width:520px){.overlay{align-items:center}}
+</style>
+<div class="app">
+  <header class="top" id="top"></header>
+  <main id="view"></main>
+</div>
+<nav class="tabs" aria-label="Разделы"><div>
+  <button class="tab on" data-act="tab" data-tab="arena">Арена</button>
+  <button class="tab" data-act="tab" data-tab="lab">Селекция</button>
+  <button class="tab" data-act="tab" data-tab="mutants">Мутанты</button>
+  <button class="tab" data-act="tab" data-tab="bingo">Бинго</button>
+  <button class="tab" data-act="tab" data-tab="top">Рейтинг</button>
+</div></nav>
+<div class="overlay" id="modal" hidden></div>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+/* ---------- ENGINE: чистая логика без DOM ---------- */
+const GENE_IDS = ['fang', 'steel', 'spore', 'ether', 'bone'];
+const GENES = {
+  fang:  { name: 'Клык',  hex: '#ff6b57', hp: 40, atk: 12, spd: 6, sp: 'Рывок',     spDesc: 'Двойной удар по одной цели',      needsTarget: true  },
+  steel: { name: 'Сталь', hex: '#5aa9e6', hp: 60, atk: 8,  spd: 3, sp: 'Залп',      spDesc: 'Удар по всем врагам, 80% силы',   needsTarget: false },
+  spore: { name: 'Спора', hex: '#9bd04f', hp: 45, atk: 9,  spd: 5, sp: 'Яд',        spDesc: 'Слабый удар и яд на 3 хода',      needsTarget: true  },
+  ether: { name: 'Эфир',  hex: '#b78cff', hp: 38, atk: 10, spd: 8, sp: 'Исцеление', spDesc: 'Лечит самого раненого союзника',  needsTarget: false },
+  bone:  { name: 'Кость', hex: '#e6dcc2', hp: 52, atk: 10, spd: 4, sp: 'Вампиризм', spDesc: 'Сильный удар, лечит себя на половину урона', needsTarget: true }
+};
+// кто кого пробивает: Клык > Спора > Эфир > Сталь > Кость > Клык
+const BEATS = { fang: 'spore', spore: 'ether', ether: 'steel', steel: 'bone', bone: 'fang' };
+
+const SPECIES = {
+  fang:  { fang: 'Рвач',      steel: 'Таран',   spore: 'Гнильщик', ether: 'Скользун', bone: 'Костолом' },
+  steel: { fang: 'Лязг',      steel: 'Монолит', spore: 'Ржавец',   ether: 'Страж',    bone: 'Саркофаг' },
+  spore: { fang: 'Жальщик',   steel: 'Мухомор', spore: 'Мицелий',  ether: 'Сновидец', bone: 'Могильник' },
+  ether: { fang: 'Вихрь',     steel: 'Маятник', spore: 'Мерцала',  ether: 'Оракул',   bone: 'Призрак' },
+  bone:  { fang: 'Падальщик', steel: 'Латник',  spore: 'Плесневик', ether: 'Вестник', bone: 'Скелет' }
+};
+const speciesName = (g1, g2) => SPECIES[g1][g2];
+const speciesKey = (g1, g2) => g1 + '-' + g2;
+
+const LAB_BASE = 0.2, LAB_PER_LVL = 0.04, LAB_CAP_H = 8, ARCHIVE_CAP = 50;   // монет в час = 0.2 + 0.04 × уровень (на каждого мутанта)
+const STREAK_BASE = [30, 35, 40, 50, 60, 75, 120];                          // награды серии входов, 7-дневный цикл
+const BREED_COST = 30, SAMPLE_COST = 40, HYBRID_COST = 90, RELEASE_REFUND = 8, COLLECTION_CAP = 12;
+const xpNeed = l => 18 + 8 * l;
+const upgradeCost = l => 20 + 12 * l;
+
+/* ---------- ЕЖЕДНЕВНЫЕ ЗАДАНИЯ ---------- */
+const DQ_POOL = [
+  { t: 'win',     n: 3, base: 60 },
+  { t: 'fight',   n: 5, base: 50 },
+  { t: 'breed',   n: 2, base: 40 },
+  { t: 'upgrade', n: 2, base: 50 }
+];
+const DQ_NAME = { login: 'Вход в игру', win: 'Выиграй бои на арене', fight: 'Проведи бои', breed: 'Скрести мутантов', upgrade: 'Прокачай мутантов за монеты' };
+const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };   // цена повышения с уровня l на l+1
+
+function calcStats(m, boost = 1, bonus = null) {
+  const a = GENES[m.g[0]], b = GENES[m.g[1]];
+  const lv = 1 + 0.18 * (m.lvl - 1), gn = 1 + 0.08 * m.gen;
+  const f = k => (a[k] * 0.65 + b[k] * 0.35) * lv * gn * boost;
+  const hpM = bonus ? (bonus.hp[m.g[0]] || 1) * bonus.all : 1;
+  const atkM = bonus ? (bonus.atk[m.g[1]] || 1) * bonus.all : 1;
+  return {
+    hp: Math.round(f('hp') * hpM),
+    atk: Math.round(f('atk') * atkM * 10) / 10,
+    spd: Math.round((a.spd * 0.65 + b.spd * 0.35) * 10) / 10
+  };
+}
+
+function breedGenes(a, b) {
+  let g1 = a.g[Math.random() < 0.5 ? 0 : 1];
+  let g2 = b.g[Math.random() < 0.5 ? 0 : 1];
+  let mutated = false;
+  if (Math.random() < 0.08) {
+    const r = GENE_IDS[Math.floor(Math.random() * GENE_IDS.length)];
+    if (Math.random() < 0.5) g1 = r; else g2 = r;
+    mutated = true;
+  }
+  const g = Math.random() < 0.5 ? [g1, g2] : [g2, g1];
+  return { g, gen: Math.min(5, Math.max(a.gen, b.gen) + 1), mutated };
+}
+
+function addXp(m, x) {
+  const ups = [];
+  m.xp += x;
+  while (m.xp >= xpNeed(m.lvl)) {
+    m.xp -= xpNeed(m.lvl);
+    m.lvl++;
+    ups.push(m.lvl);
+  }
+  return ups;
+}
+
+/* ---------- Враги ---------- */
+const rndGene = () => GENE_IDS[Math.floor(Math.random() * GENE_IDS.length)];
+
+function genFoeSpec(stage) {
+  const lvl = 1 + Math.floor((stage - 1) * 0.7);
+  const gen = Math.min(4, Math.floor(stage / 6));
+  const boss = stage % 5 === 0;
+  const units = [0, 1, 2].map(i => ({
+    g: [rndGene(), rndGene()],
+    lvl: Math.max(1, lvl + (boss && i === 1 ? 1 : 0) - (Math.random() < 0.3 ? 1 : 0)),
+    gen
+  }));
+  return { stage, boss, units };
+}
+const foeBoost = spec => (spec.boss ? 1.25 : 1) * (spec.stage < 3 ? 0.85 : 1) * (1 + 0.03 * Math.max(0, spec.stage - 18));
+
+/* ---------- Бой ---------- */
+function makeUnit(m, side, idx, boost = 1, tag = '', bonus = null) {
+  const st = calcStats(m, boost, bonus);
+  return {
+    id: side + idx, side, g: m.g, lvl: m.lvl, gen: m.gen, ref: m,
+    name: speciesName(m.g[0], m.g[1]), tag,
+    hp: st.hp, max: st.hp, atk: st.atk, spd: st.spd,
+    cd: 2, poison: 0, poisonDmg: 0, alive: true
+  };
+}
+
+function newBattle(allyMutants, foeSpec, bonus = null) {
+  const allies = allyMutants.map((m, i) => makeUnit(m, 'a', i, 1, '', bonus));
+  const b = foeBoost(foeSpec);
+  const foes = foeSpec.units.map((u, i) =>
+    makeUnit({ g: u.g, lvl: u.lvl, gen: u.gen, xp: 0 }, 'f', i, b, foeSpec.boss && i === 1 ? 'босс' : ''));
+  return { allies, foes, queue: [], round: 0 };
+}
+
+const alive = arr => arr.filter(u => u.alive);
+function outcome(B) {
+  if (!alive(B.foes).length) return 'win';
+  if (!alive(B.allies).length) return 'lose';
+  if (B.round > 40) return 'lose';
+  return null;
+}
+
+function applyDamage(t, d, ev, type, eff) {
+  t.hp = Math.max(0, t.hp - d);
+  if (t.hp === 0) t.alive = false;
+  ev.push({ id: t.id, type, val: d, eff: eff || '' });
+}
+
+function nextActor(B) {
+  const ev = [];
+  for (;;) {
+    if (outcome(B)) return { u: null, ev };
+    if (!B.queue.length) {
+      B.round++;
+      if (outcome(B)) return { u: null, ev };
+      B.queue = [...alive(B.allies), ...alive(B.foes)]
+        .sort((a, b) => (b.spd - a.spd) || (Math.random() - 0.5));
+    }
+    const u = B.queue.shift();
+    if (!u.alive) continue;
+    if (u.poison > 0) {
+      u.poison--;
+      applyDamage(u, u.poisonDmg, ev, 'poison');
+      if (!u.alive) continue;
+    }
+    if (u.cd > 0) u.cd--;
+    return { u, ev };
+  }
+}
+
+function hit(u, t, mult, ev) {
+  const eff = BEATS[u.g[0]] === t.g[0] ? 1.25 : (BEATS[t.g[0]] === u.g[0] ? 0.8 : 1);
+  const d = Math.max(1, Math.round(u.atk * mult * eff * (0.9 + Math.random() * 0.2)));
+  applyDamage(t, d, ev, 'dmg', eff > 1 ? 'up' : eff < 1 ? 'down' : '');
+}
+
+function act(B, u, kind, target) {
+  const ev = [{ id: u.id, type: 'acts' }];
+  const foes = u.side === 'a' ? B.foes : B.allies;
+  const mates = u.side === 'a' ? B.allies : B.foes;
+  let text;
+  if (kind === 'attack') {
+    hit(u, target, 1, ev);
+    text = `${u.name} бьёт: ${target.name}`;
+  } else {
+    const g = u.g[0];
+    text = `${u.name}: ${GENES[g].sp}`;
+    if (g === 'fang') hit(u, target, 2, ev);
+    if (g === 'steel') alive(foes).forEach(t => hit(u, t, 0.8, ev));
+    if (g === 'spore') {
+      hit(u, target, 0.6, ev);
+      if (target.alive) {
+        target.poison = 3;
+        target.poisonDmg = Math.max(1, Math.round(u.atk * 0.4));
+        ev.push({ id: target.id, type: 'status' });
+      }
+    }
+    if (g === 'bone') {
+      hit(u, target, 1.2, ev);
+      const h = Math.min(u.max - u.hp, Math.round(ev[ev.length - 1].val * 0.5));
+      if (h > 0) { u.hp += h; ev.push({ id: u.id, type: 'heal', val: h }); }
+    }
+    if (g === 'ether') {
+      const t = alive(mates).sort((x, y) => x.hp / x.max - y.hp / y.max)[0];
+      const h = Math.min(t.max - t.hp, Math.round(u.atk * 2.5));
+      t.hp += h;
+      ev.push({ id: t.id, type: 'heal', val: h });
+    }
+    u.cd = 3;
+  }
+  return { ev, text };
+}
+
+function aiChoose(B, u) {
+  const foes = alive(u.side === 'a' ? B.foes : B.allies);
+  const mates = alive(u.side === 'a' ? B.allies : B.foes);
+  let kind = 'attack';
+  if (u.cd === 0) {
+    if (u.g[0] === 'ether') {
+      if (mates.some(x => x.hp / x.max < 0.7)) kind = 'special';
+    } else kind = 'special';
+  }
+  let target = null;
+  if (!(kind === 'special' && !GENES[u.g[0]].needsTarget)) {
+    const sorted = [...foes].sort((a, b) => a.hp - b.hp);
+    target = Math.random() < 0.3 ? foes[Math.floor(Math.random() * foes.length)] : sorted[0];
+  }
+  return { kind, target };
+}
+
+/* ---------- БИНГО 5x5: строка = первый ген, столбец = второй ---------- */
+const BINGO_ROW_BONUS = 1.06, BINGO_COL_BONUS = 1.06;
+const LINES = [];
+GENE_IDS.forEach(g => LINES.push({
+  id: 'row-' + g, kind: 'row', gene: g, label: 'Строка', coins: 60,
+  title: 'Мастер «' + GENES[g].name + '»',
+  desc: '+6% здоровья мутантам, у которых первый ген ' + GENES[g].name,
+  cells: GENE_IDS.map(h => g + '-' + h)
+}));
+GENE_IDS.forEach(g => LINES.push({
+  id: 'col-' + g, kind: 'col', gene: g, label: 'Столбец', coins: 60,
+  title: 'Знаток «' + GENES[g].name + '»',
+  desc: '+6% атаки мутантам, у которых второй ген ' + GENES[g].name,
+  cells: GENE_IDS.map(h => h + '-' + g)
+}));
+LINES.push({
+  id: 'diag-pure', kind: 'd1', label: 'Диагональ ↘', coins: 150, title: 'Чистая кровь',
+  desc: 'Скрещивание стоит 20 монет вместо 30',
+  cells: GENE_IDS.map(g => g + '-' + g)
+});
+LINES.push({
+  id: 'diag-cross', kind: 'd2', label: 'Диагональ ↙', coins: 150, title: 'Перекрёсток',
+  desc: '+10% монет за каждую победу',
+  cells: GENE_IDS.map((g, i) => g + '-' + GENE_IDS[GENE_IDS.length - 1 - i])
+});
+LINES.push({
+  id: 'all', kind: 'all', label: 'Всё поле', coins: 500, title: 'Полный геном',
+  desc: '+10% ко всем характеристикам бойцов',
+  cells: GENE_IDS.flatMap(a => GENE_IDS.map(b => a + '-' + b))
+});
+
+function lineProgress(l, seen) {
+  const have = l.cells.filter(k => seen[k]).length;
+  return { have, total: l.cells.length, done: have === l.cells.length };
+}
+
+function bonusFrom(claimed) {
+  const b = { hp: {}, atk: {}, all: 1, breedCost: BREED_COST, coinMult: 1 };
+  LINES.forEach(l => {
+    if (!claimed || !claimed[l.id]) return;
+    if (l.kind === 'row') b.hp[l.gene] = (b.hp[l.gene] || 1) * BINGO_ROW_BONUS;
+    if (l.kind === 'col') b.atk[l.gene] = (b.atk[l.gene] || 1) * BINGO_COL_BONUS;
+    if (l.kind === 'd1') b.breedCost = 20;
+    if (l.kind === 'd2') b.coinMult = 1.1;
+    if (l.kind === 'all') b.all = 1.1;
+  });
+  return b;
+}
+
+// выдаёт награды за новые собранные линии, возвращает список этих линий
+function checkBingo(state) {
+  state.claimed = state.claimed || {};
+  const got = [];
+  LINES.forEach(l => {
+    if (!state.claimed[l.id] && lineProgress(l, state.seen).done) {
+      state.claimed[l.id] = 1;
+      state.coins += l.coins;
+      got.push(l);
+    }
+  });
+  return got;
+}
+
+/* Награды */
+function rewards(stage, won) {
+  return won ? { coins: 20 + 5 * stage, xp: 14 + 3 * stage } : { coins: 5, xp: 6 + stage };
+}
+/* ---------- РИСУНОК МУТАНТА (SVG из двух генов) ---------- */
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const f = amt < 0 ? 0 : 255, p = Math.abs(amt);
+  [r, g, b] = [r, g, b].map(x => Math.round((f - x) * p + x));
+  return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+function creatureSVG(g1, g2) {
+  const c1 = GENES[g1].hex, c2 = GENES[g2].hex;
+  const dk = shade(c1, -0.45), lt = shade(c1, 0.35);
+  const a1 = shade(c2, 0.08), a2 = shade(c2, -0.35);
+  const ol = '#0a1017', sw = 'stroke="' + ol + '" stroke-width="3" stroke-linejoin="round"';
+  let body = '', eyes = '', back = '', front = '';
+  const top = { fang: 34, steel: 30, spore: 34, ether: 16, bone: 28 }[g1];
+
+  if (g1 === 'fang') {
+    body = `<path d="M18 82 L24 46 L38 34 L62 34 L76 46 L82 82 Z" fill="${c1}" ${sw}/>
+      <path d="M38 34 L62 34 L76 46 L50 56 L24 46Z" fill="${lt}" opacity=".35"/>
+      <path d="M30 82 L34 64 L66 64 L70 82Z" fill="${dk}" opacity=".5"/>`;
+    eyes = `<path d="M31 46 L46 51 L33 56Z" fill="#fff"/><path d="M69 46 L54 51 L67 56Z" fill="#fff"/>
+      <circle cx="40" cy="51" r="1.8" fill="${ol}"/><circle cx="60" cy="51" r="1.8" fill="${ol}"/>
+      <path d="M38 66 L43 73 L47 66 L53 66 L57 73 L62 66" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/>`;
+  } else if (g1 === 'steel') {
+    body = `<rect x="22" y="30" width="56" height="52" rx="10" fill="${c1}" ${sw}/>
+      <rect x="22" y="30" width="56" height="16" rx="8" fill="${lt}" opacity=".35"/>
+      <rect x="30" y="64" width="40" height="12" rx="3" fill="${dk}" opacity=".5"/>
+      <circle cx="28" cy="36" r="2" fill="${ol}"/><circle cx="72" cy="36" r="2" fill="${ol}"/>
+      <circle cx="28" cy="76" r="2" fill="${ol}"/><circle cx="72" cy="76" r="2" fill="${ol}"/>`;
+    eyes = `<rect x="30" y="46" width="40" height="11" rx="5.5" fill="${ol}"/><rect x="34" y="49.5" width="32" height="4" rx="2" fill="#bff3ff"/>`;
+  } else if (g1 === 'spore') {
+    body = `<ellipse cx="50" cy="68" rx="28" ry="19" fill="${lt}" ${sw}/>
+      <path d="M14 54 C14 22 86 22 86 54 C86 60 14 60 14 54Z" fill="${c1}" ${sw}/>
+      <circle cx="32" cy="44" r="5" fill="${lt}" opacity=".8"/><circle cx="55" cy="36" r="4" fill="${lt}" opacity=".8"/><circle cx="71" cy="49" r="4.5" fill="${lt}" opacity=".8"/>`;
+    eyes = `<circle cx="40" cy="68" r="5.5" fill="#fff"/><circle cx="60" cy="68" r="5.5" fill="#fff"/>
+      <circle cx="41" cy="69" r="2.6" fill="${ol}"/><circle cx="59" cy="69" r="2.6" fill="${ol}"/>`;
+  } else if (g1 === 'ether') {
+    body = `<path d="M50 16 C80 44 78 72 50 84 C22 72 20 44 50 16Z" fill="${c1}" ${sw}/>
+      <path d="M50 22 C66 42 64 56 50 62 C40 54 40 40 50 22Z" fill="${lt}" opacity=".35"/>`;
+    eyes = `<ellipse cx="41" cy="58" rx="5" ry="6.5" fill="#fff"/><ellipse cx="59" cy="58" rx="5" ry="6.5" fill="#fff"/>
+      <circle cx="42" cy="59" r="2.6" fill="${ol}"/><circle cx="58" cy="59" r="2.6" fill="${ol}"/>`;
+  } else {
+    // череп на рёбрах
+    body = `<path d="M24 82 L28 52 C26 26 74 26 72 52 L76 82 Z" fill="${c1}" ${sw}/>
+      <path d="M32 34 C44 26 58 26 68 34 C60 40 42 40 32 34Z" fill="${lt}" opacity=".5"/>
+      <path d="M32 72 Q50 78 68 72 M31 78 Q50 84 69 78" fill="none" stroke="${dk}" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>
+      <rect x="38" y="62" width="24" height="7" rx="2" fill="#fff" ${sw.replace('stroke-width="3"', 'stroke-width="2"')}/>
+      <path d="M44 62 V69 M50 62 V69 M56 62 V69" stroke="${ol}" stroke-width="1.6"/>`;
+    eyes = `<ellipse cx="39" cy="50" rx="7.5" ry="8" fill="${ol}"/><ellipse cx="61" cy="50" rx="7.5" ry="8" fill="${ol}"/>
+      <circle cx="39" cy="51" r="3" fill="#ffe27a"/><circle cx="61" cy="51" r="3" fill="#ffe27a"/>
+      <path d="M48 58 L50 62 L52 58Z" fill="${ol}"/>`;
+  }
+
+  // дополнение от второго гена
+  if (g2 === 'fang') {
+    const [x, y] = { fang: [38, 36], steel: [30, 31], spore: [28, 40], ether: [43, 28], bone: [34, 31] }[g1];
+    back = `<path d="M${x - 4} ${y + 5} L${x - 9} ${y - 18} L${x + 9} ${y + 1}Z" fill="${a1}" ${sw}/>
+      <path d="M${104 - x} ${y + 5} L${109 - x} ${y - 18} L${91 - x} ${y + 1}Z" fill="${a1}" ${sw}/>`;
+  } else if (g2 === 'steel') {
+    const [x, y] = { fang: [21, 66], steel: [20, 56], spore: [20, 68], ether: [25, 58], bone: [24, 66] }[g1];
+    front = `<ellipse cx="${x}" cy="${y}" rx="9" ry="11" fill="${a1}" ${sw}/><ellipse cx="${100 - x}" cy="${y}" rx="9" ry="11" fill="${a1}" ${sw}/>
+      <circle cx="${x}" cy="${y}" r="2" fill="${a2}"/><circle cx="${100 - x}" cy="${y}" r="2" fill="${a2}"/>`;
+  } else if (g2 === 'spore') {
+    back = `<path d="M44 ${top + 2} Q38 ${top - 12} 30 ${top - 10}" fill="none" stroke="${a2}" stroke-width="5" stroke-linecap="round"/>
+      <path d="M56 ${top + 2} Q62 ${top - 12} 70 ${top - 10}" fill="none" stroke="${a2}" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="30" cy="${top - 10}" r="5" fill="${a1}" ${sw}/><circle cx="70" cy="${top - 10}" r="5" fill="${a1}" ${sw}/>`;
+    front = `<circle cx="36" cy="76" r="3.5" fill="${a1}" opacity=".9"/><circle cx="63" cy="78" r="4.5" fill="${a1}" opacity=".9"/><circle cx="52" cy="73" r="2.5" fill="${a1}" opacity=".9"/>`;
+  } else if (g2 === 'bone') {
+    const [x, y] = { fang: [22, 60], steel: [22, 54], spore: [20, 66], ether: [26, 58], bone: [26, 62] }[g1];
+    back = `<path d="M${x + 5} ${y - 10} L${x - 10} ${y} L${x + 5} ${y + 10}Z" fill="${a1}" ${sw}/>
+      <path d="M${95 - x} ${y - 10} L${110 - x} ${y} L${95 - x} ${y + 10}Z" fill="${a1}" ${sw}/>`;
+    front = `<path d="M37 70 Q50 74 63 70 M38 76 Q50 80 62 76" fill="none" stroke="${a1}" stroke-width="2.6" stroke-linecap="round"/>`;
+  } else {
+    back = `<circle cx="18" cy="32" r="8" fill="${a1}" opacity=".25"/><circle cx="18" cy="32" r="4.5" fill="${a1}" ${sw}/>
+      <circle cx="84" cy="40" r="7" fill="${a1}" opacity=".25"/><circle cx="84" cy="40" r="3.8" fill="${a1}" ${sw}/>
+      <circle cx="76" cy="16" r="5" fill="${a1}" opacity=".25"/><circle cx="76" cy="16" r="2.6" fill="${a1}" ${sw}/>`;
+    front = `<path d="M50 ${top + 5} L55.5 ${top + 14} L50 ${top + 23} L44.5 ${top + 14}Z" fill="${a1}" stroke="${ol}" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <ellipse cx="50" cy="89" rx="27" ry="4" fill="#000" opacity=".4"/>${back}${body}${front}${eyes}</svg>`;
+}
+
+/* ---------- СОСТОЯНИЕ ---------- */
+const LEGACY_KEY = 'genome-arena-v1';
+const TGU = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) || null;
+const KEY = TGU ? LEGACY_KEY + ':u' + TGU.id : LEGACY_KEY;   // у каждого аккаунта Telegram своё сохранение
+function defaults() {
+  const mk = (id, g) => ({ id, g, lvl: 1, xp: 0, gen: 0 });
+  return {
+    coins: 100, stage: 1, best: 1, nextId: 4, wins: 0, losses: 0,
+    mutants: [mk(1, ['fang', 'fang']), mk(2, ['steel', 'steel']), mk(3, ['spore', 'spore'])],
+    team: [1, 2, 3],
+    seen: { 'fang-fang': 1, 'steel-steel': 1, 'spore-spore': 1 },
+    claimed: {},
+    foe: null,
+    uid: TGU ? TGU.id : undefined
+  };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+if (S && S.uid && TGU && S.uid !== TGU.id) S = null;   // чужое сохранение: не используем
+if (!S || !Array.isArray(S.mutants) || !S.mutants.length) S = defaults();
+if (TGU) S.uid = TGU.id;
+S.team = (S.team || []).filter(id => S.mutants.some(m => m.id === id && !m.arc)).slice(0, 3);
+if (!S.team.length) S.team = S.mutants.filter(m => !m.arc).slice(0, 3).map(m => m.id);
+if (!S.foe || S.foe.stage !== S.stage) S.foe = genFoeSpec(S.stage);
+S.seen = S.seen || {};
+S.mutants.forEach(m => { S.seen[speciesKey(m.g[0], m.g[1])] = 1; });
+let pendingBingo = checkBingo(S);   // награды за линии, собранные до обновления игры
+const bonus = () => bonusFrom(S.claimed);
+const breedCost = () => bonus().breedCost;
+
+function save() {
+  try { S.ts = Date.now(); localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* без сохранения игра работает */ }
+  markDirty();
+}
+const dqK = () => 1 + 0.05 * (S.stage - 1);
+const yesterdayKey = () => { const d = new Date(); d.setDate(d.getDate() - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function ensureDaily() {
+  const day = todayKey();
+  if (S.daily && S.daily.day === day) { if (!S.streak) S.streak = { n: 1, last: day }; return; }
+  const prev = S.streak;
+  S.streak = { n: prev && prev.last === yesterdayKey() ? prev.n + 1 : 1, last: day };   // пропустил день: серия с начала
+  const si = (S.streak.n - 1) % 7;
+  const k = dqK();
+  const pick = DQ_POOL.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+  S.daily = { day, quests: [
+    { id: 'login', n: 1, p: 1, r: Math.round(STREAK_BASE[si] * k), c: 0, d: si + 1 },
+    ...pick.map(q => ({ id: q.t, n: q.n, p: 0, r: Math.round(q.base * k), c: 0 }))
+  ] };
+  // пишем в localStorage без обновления метки времени: новый пустой профиль не должен «перебить» облако
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+}
+function dq(t, n = 1) {
+  ensureDaily();
+  const q = S.daily.quests.find(x => x.id === t);
+  if (q) q.p = Math.min(q.n, q.p + n);
+}
+function ensureLab() {
+  if (!S.lab) { S.lab = { t: Date.now(), f: 0 }; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  if (S.lab.t > Date.now()) S.lab.t = Date.now();          // часы переведены назад: не наказываем
+}
+const labRate = () => S.mutants.reduce((a, m) => a + LAB_BASE + LAB_PER_LVL * m.lvl, 0);
+function labPending() {
+  ensureLab();
+  const el = Math.min(Date.now() - S.lab.t, LAB_CAP_H * 3600000);
+  return S.lab.f + labRate() * el / 3600000;
+}
+const dqReady = () => { ensureDaily(); return S.daily.quests.filter(q => q.p >= q.n && !q.c).length; };
+const byId = id => S.mutants.find(m => m.id === id);
+const active = () => S.mutants.filter(m => !m.arc);
+const activeCount = () => S.mutants.filter(m => !m.arc).length;
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let tab = 'arena';
+let picks = [];          // выбранные родители
+let showArc = false;
+let confirmId = null;    // подтверждение «отпустить»
+let Bt = null;           // текущий бой
+
+/* ---------- ОБЩИЕ КУСКИ РАЗМЕТКИ ---------- */
+const geneChip = g => `<span class="gene" style="--c:${GENES[g].hex}">${GENES[g].name}</span>`;
+const art = (g1, g2) => `<div class="art" style="--c1:${GENES[g1].hex}">${creatureSVG(g1, g2)}</div>`;
+
+function miniCard(m, opts = {}) {
+  const st = calcStats(m);
+  return `<div class="mc${opts.sel ? ' sel' : ''}" data-act="${opts.act || 'open'}" data-id="${m.id}" tabindex="0" role="button" aria-label="${esc(speciesName(m.g[0], m.g[1]))}, уровень ${m.lvl}">
+    ${opts.badge ? `<span class="badge">${opts.badge}</span>` : ''}
+    ${art(m.g[0], m.g[1])}
+    <div class="nm">${speciesName(m.g[0], m.g[1])}</div>
+    <div class="meta">ур.${m.lvl} · пок.${m.gen}</div>
+  </div>`;
+}
+
+function foeCard(u, boss) {
+  return `<div class="mc" style="cursor:default">
+    ${boss ? '<span class="badge boss">босс</span>' : ''}
+    ${art(u.g[0], u.g[1])}
+    <div class="nm">${speciesName(u.g[0], u.g[1])}</div>
+    <div class="meta">ур.${u.lvl}</div>
+  </div>`;
+}
+
+function renderTop() {
+  $('#top').innerHTML = `<div class="logo">Геномная арена<small>скрещивай · качай · побеждай</small></div>
+    <div class="chips"><span class="chip stage" title="Стадия арены"><i></i>${S.stage}</span><span class="chip" title="Монеты"><i></i>${S.coins}</span>
+      <button class="dq-btn" data-act="daily" aria-label="Ежедневные задания" title="Ежедневные задания"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M8.5 15l2.5 2.5 4.5-5"/></svg>${dqReady() ? '<i class="dq-dot"></i>' : ''}</button></div>`;
+}
+
+/* ---------- ЭКРАНЫ ---------- */
+function labHTML() {
+  const rate = labRate(), max = Math.max(1, Math.floor(rate * LAB_CAP_H));
+  const cur = Math.min(Math.floor(labPending()), max);
+  return `<section class="panel">
+    <h2 class="h">Лаборатория</h2>
+    <p class="sub">Мутанты работают, пока тебя нет, и копят монеты до ${LAB_CAP_H} часов. Чем выше уровень, тем больше доход. Архивные мутанты тоже работают.</p>
+    <div class="row">
+      <div class="grow"><div class="meta"><b id="labAmt" style="color:var(--fg)">${cur}</b> / ${max} · +${rate.toFixed(1).replace('.', ',')} в час</div>
+        <div class="xp" style="margin-bottom:0"><i id="labBar" style="width:${Math.round(cur / max * 100)}%"></i></div></div>
+      <button class="btn primary" id="labClaim" data-act="lab-claim" ${cur < 1 ? 'disabled' : ''}>Забрать</button>
+    </div>
+  </section>`;
+}
+function updateLab() {
+  const a = $('#labAmt'); if (!a || !a.isConnected) return;
+  const rate = labRate(), max = Math.max(1, Math.floor(rate * LAB_CAP_H));
+  const cur = Math.min(Math.floor(labPending()), max);
+  a.textContent = cur;
+  $('#labBar').style.width = Math.round(cur / max * 100) + '%';
+  const b = $('#labClaim'); if (b) { if (cur < 1) b.setAttribute('disabled', ''); else b.removeAttribute('disabled'); }
+}
+
+function viewArena() {
+  const team = S.team.map(byId);
+  const slots = [0, 1, 2].map(i => team[i] ? miniCard(team[i], { act: 'goto-mutants' }) : `<div class="mc empty">пусто</div>`).join('');
+  const foes = S.foe.units.map((u, i) => foeCard(u, S.foe.boss && i === 1)).join('');
+  const rw = rewards(S.stage, true);
+  return `
+  <section class="panel">
+    <h2 class="h">Стадия ${S.stage}${S.foe.boss ? ' · босс' : ''}</h2>
+    <p class="sub">Награда за победу: ${rw.coins} монет и ${rw.xp} опыта каждому бойцу.</p>
+    <div class="grid3">${foes}</div>
+  </section>
+  <section class="panel">
+    <h2 class="h">Твоя команда</h2>
+    <div class="grid3">${slots}</div>
+    <div style="margin-top:12px"><button class="btn primary wide" data-act="fight">В бой</button></div>
+  </section>
+  ${labHTML()}
+  <section class="panel">
+    <h2 class="h">Кто кого пробивает</h2>
+    <div class="cycle">${geneChip('fang')}<b>→</b>${geneChip('spore')}<b>→</b>${geneChip('ether')}<b>→</b>${geneChip('steel')}<b>→</b>${geneChip('bone')}<b>→</b>${geneChip('fang')}</div>
+    <p class="sub" style="margin:8px 0 0">Бьёшь по слабому гену первого слота: урон ×1,25. По сильному: ×0,8.</p>
+  </section>
+  <p class="sub center" style="margin-top:14px">Побед: ${S.wins} · Поражений: ${S.losses} · Рекорд: стадия ${S.best}</p>`;
+}
+
+function viewLab() {
+  const a = byId(picks[0]), b = byId(picks[1]);
+  const slot = m => m ? miniCard(m, { act: 'pick' }) : `<div class="mc empty">выбери<br>родителя</div>`;
+  const full = activeCount() >= COLLECTION_CAP;
+  const can = a && b && S.coins >= breedCost() && !full;
+  let note = `Потомок берёт по одному гену от каждого родителя. Шанс мутации 8%. Каждое новое поколение даёт +8% к силе (до 5-го).`;
+  if (full) note = `Мест нет: в коллекции ${COLLECTION_CAP} мутантов. Отпусти кого-нибудь или убери в архив на вкладке «Мутанты».`;
+  else if (a && b) note = `Гены для выбора: ${[...new Set([...a.g, ...b.g])].map(geneChip).join(' ')}`;
+  const grid = active().map(m => miniCard(m, { act: 'pick', sel: picks.includes(m.id) })).join('');
+  return `
+  <section class="panel">
+    <h2 class="h">Скрещивание</h2>
+    <div class="pair">${slot(a)}<div class="x">×</div>${slot(b)}</div>
+    <p class="sub">${note}</p>
+    <button class="btn primary wide" data-act="breed" ${can ? '' : 'disabled'}>Скрестить · <span class="price">${breedCost()}</span></button>
+  </section>
+  <section class="panel">
+    <h2 class="h">Родители</h2>
+    <div class="gridm">${grid}</div>
+  </section>
+  ${shopHTML(full)}`;
+}
+
+function shopCard(a, b, full) {
+  const pure = a === b, open = pure || S.seen[speciesKey(a, b)];
+  const price = pure ? SAMPLE_COST : HYBRID_COST;
+  const can = open && !full && S.coins >= price;
+  return `<div class="mc shop${open ? '' : ' lock'}" style="cursor:default">
+    ${art(a, b)}
+    <div class="nm">${open ? speciesName(a, b) : '???'}</div>
+    <div class="meta">${geneChip(a)}${pure ? '' : ' ' + geneChip(b)}</div>
+    ${open
+      ? `<button class="btn buy" data-act="buy" data-id="${a}-${b}" ${can ? '' : 'disabled'}><span class="price">${price}</span></button>`
+      : `<div class="meta" style="margin-top:8px;min-height:36px">выведи скрещиванием</div>`}
+  </div>`;
+}
+
+function shopHTML(full) {
+  const pure = GENE_IDS.map(g => shopCard(g, g, full)).join('');
+  const hyb = GENE_IDS.flatMap(a => GENE_IDS.filter(b => b !== a).map(b => shopCard(a, b, full))).join('');
+  return `<section class="panel">
+    <h2 class="h">Магазин видов</h2>
+    <p class="sub">Чистые виды продаются всегда. Гибрид появляется в продаже после того, как ты впервые его выведешь. Покупка даёт мутанта 1-го уровня, нулевого поколения.</p>
+    <div class="gridm">${pure}</div>
+  </section>
+  <section class="panel">
+    <h2 class="h">Гибриды</h2>
+    <div class="gridm">${hyb}</div>
+  </section>`;
+}
+
+function viewMutants() {
+  const grid = active().map(m => miniCard(m, { badge: S.team.includes(m.id) ? 'в бою' : '' })).join('');
+  const arc = S.mutants.filter(m => m.arc);
+  const arcGrid = arc.map(m => miniCard(m, {})).join('');
+  return `
+  <section class="panel">
+    <h2 class="h">Коллекция · ${activeCount()}/${COLLECTION_CAP}</h2>
+    <p class="sub">Нажми на мутанта, чтобы увидеть силы и поставить в команду. Первый ген задаёт спецприём.</p>
+    <div class="gridm">${grid}</div>
+  </section>
+  <section class="panel">
+    <button class="btn wide" data-act="arc-toggle">Архив · ${arc.length}/${ARCHIVE_CAP} ${showArc ? '▴' : '▾'}</button>
+    ${showArc ? `<p class="sub" style="margin:10px 0">Здесь лежат мутанты, которые не нужны сейчас. Они не занимают места в коллекции, но продолжают работать в лаборатории.</p>
+      ${arcGrid ? `<div class="gridm">${arcGrid}</div>` : '<p class="sub center" style="margin:0">Пока пусто. Убрать мутанта в архив можно в его карточке.</p>'}` : ''}
+  </section>
+  ${(() => { const lg = legacySave(); return lg ? `<section class="panel">
+    <p class="sub">На этом устройстве осталось сохранение, сделанное до привязки к аккаунтам (стадия ${lg.stage || 1}, побед ${lg.wins || 0}). Если это твой прогресс, забери его в этот аккаунт. Сделать это можно только один раз и только в одном аккаунте. Текущий прогресс этого аккаунта будет заменён.</p>
+    <button class="btn wide" data-act="adopt">${confirmId === 'adopt' ? 'Точно, это мой прогресс' : 'Забрать старое сохранение'}</button>
+  </section>` : ''; })()}
+  <section class="panel">
+    <p class="sub center" style="margin:0 0 8px">${syncInfo()}</p>
+    <button class="btn danger wide" data-act="reset">${confirmId === 'reset' ? 'Точно стереть всё?' : 'Начать игру заново'}</button>
+  </section>`;
+}
+
+function viewBingo() {
+  const total = GENE_IDS.length * GENE_IDS.length;
+  const found = LINES[LINES.length - 1].cells.filter(k => S.seen[k]).length;
+  const doneKeys = new Set();
+  LINES.filter(l => l.kind !== 'all' && S.claimed[l.id]).forEach(l => l.cells.forEach(k => doneKeys.add(k)));
+  const head = GENE_IDS.map(g => `<div class="bh" title="${GENES[g].name}" style="--c:${GENES[g].hex}"><i></i></div>`).join('');
+  const rows = GENE_IDS.map(a => `<div class="bh" title="${GENES[a].name}" style="--c:${GENES[a].hex}"><i></i></div>` +
+    GENE_IDS.map(b => {
+      const k = speciesKey(a, b), ok = S.seen[k];
+      return `<div class="bc${ok ? '' : ' lock'}${doneKeys.has(k) ? ' won' : ''}">${art(a, b)}<div class="nm">${ok ? speciesName(a, b) : '???'}</div></div>`;
+    }).join('')).join('');
+  const lines = LINES.map(l => {
+    const p = lineProgress(l, S.seen), got = S.claimed[l.id];
+    return { l, p, got };
+  });
+  const list = lines.map(({ l, p, got }) => `<div class="rw${got ? ' done' : ''}">
+      <div class="rw-top"><b>${l.title}</b><span class="meta">${got ? 'получено' : p.have + '/' + p.total}</span></div>
+      <div class="sub" style="margin:0">${l.desc}. Сразу: +${l.coins} монет. <span class="meta">${l.label}</span></div>
+      <div class="xp" style="margin:2px 0 0"><i style="width:${Math.round(p.have / p.total * 100)}%"></i></div>
+    </div>`).join('');
+  const open = lines.filter(x => !x.got && x.l.kind !== 'all').sort((a, b) => (b.p.have / b.p.total) - (a.p.have / a.p.total))[0];
+  let next = '';
+  if (open) {
+    const miss = open.l.cells.filter(k => !S.seen[k]).map(k => { const [a, b] = k.split('-'); return speciesName(a, b); });
+    next = `<p class="sub" style="margin:10px 0 0">Ближе всего: «${open.l.title}». Не хватает: ${miss.join(', ')}.</p>`;
+  }
+  const bn = bonus();
+  return `
+  <section class="panel">
+    <h2 class="h">Бинго видов · ${found}/${total}</h2>
+    <p class="sub">Строка это первый ген, столбец это второй. Каждый новый вид закрашивает клетку. Собрал линию: получи монеты и постоянный бонус.</p>
+    <div class="bingo"><div></div>${head}${rows}</div>
+    ${next}
+  </section>
+  <section class="panel">
+    <h2 class="h">Награды · ${Object.keys(S.claimed).length}/${LINES.length}</h2>
+    <div class="rwlist">${list}</div>
+  </section>`;
+}
+
+function render() {
+  renderTop();
+  document.body.classList.toggle('in-battle', !!Bt);
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+  if (Bt) return;
+  $('#view').innerHTML = tab === 'arena' ? viewArena() : tab === 'lab' ? viewLab() : tab === 'bingo' ? viewBingo() : tab === 'top' ? viewTop() : viewMutants();
+}
+
+/* ---------- ОКНА ---------- */
+function openModal(html) {
+  const o = $('#modal');
+  o.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+  o.hidden = false;
+  const f = o.querySelector('button'); if (f) f.focus();
+}
+function closeModal() { $('#modal').hidden = true; $('#modal').innerHTML = ''; confirmId = null; }
+
+function upgradeHTML(m, st) {
+  const nx = calcStats({ g: m.g, lvl: m.lvl + 1, gen: m.gen }, 1, bonus());
+  const cost = upgradeCost(m.lvl);
+  return `<div style="margin-bottom:8px">
+    <button class="btn buy wide" data-act="upgrade" data-id="${m.id}" ${S.coins >= cost ? '' : 'disabled'}>Прокачать до ур.${m.lvl + 1} · <span class="price">${cost}</span></button>
+    <p class="sub center" style="margin:4px 0 0">здоровье ${st.hp} → <b style="color:var(--fg)">${nx.hp}</b> · атака ${Math.round(st.atk)} → <b style="color:var(--fg)">${Math.round(nx.atk)}</b> · у тебя ${S.coins}</p>
+  </div>`;
+}
+
+function dailyHTML() {
+  ensureDaily();
+  const qs = S.daily.quests;
+  const ready = qs.filter(q => q.p >= q.n && !q.c);
+  const left = new Date(new Date().setHours(24, 0, 0, 0)) - Date.now();
+  const h = Math.floor(left / 3600000), mn = Math.floor(left % 3600000 / 60000);
+  const rows = qs.map(q => {
+    const done = q.p >= q.n;
+    const meta = q.id === 'login' ? `День ${q.d || 1} серии · бесплатно` : `${Math.min(q.p, q.n)} / ${q.n}`;
+    const right = q.c ? '<span class="dq-got">Получено</span>'
+      : `<button class="btn primary" data-act="dq-claim" data-id="${q.id}" ${done ? '' : 'disabled'}>+<span class="price">${q.r}</span></button>`;
+    return `<li><div class="dq-main"><b>${DQ_NAME[q.id]}</b><div class="meta">${meta}${q.id === 'login' || q.c ? '' : ' · награда ' + q.r}</div>
+      ${q.id === 'login' ? '' : `<div class="xp"><i style="width:${Math.round(Math.min(q.p, q.n) / q.n * 100)}%"></i></div>`}</div>${right}</li>`;
+  }).join('');
+  const lq = qs.find(q => q.id === 'login');
+  const idx = (S.streak.n - 1) % 7, kk = dqK();
+  const strip = STREAK_BASE.map((b, i) => {
+    const got = i < idx || (i === idx && lq && lq.c);
+    return `<div class="sd${got ? ' got' : ''}${i === idx ? ' now' : ''}"><small>${i + 1}</small><b>${Math.round(b * kk)}</b></div>`;
+  }).join('');
+  return `<h3>Ежедневные задания</h3>
+    <p class="sub center">Серия входов: <b style="color:var(--fg)">${S.streak.n}</b> · новые задания через ${h} ч ${mn} мин.</p>
+    <div class="strip">${strip}</div>
+    <ul class="dqs">${rows}</ul>
+    <div class="row" style="margin-top:12px">
+      ${ready.length > 1 ? `<button class="btn primary grow" data-act="dq-claim-all">Забрать всё · ${ready.reduce((a, q) => a + q.r, 0)}</button>` : ''}
+      <button class="btn grow" data-act="close">Закрыть</button>
+    </div>`;
+}
+
+function detailHTML(m) {
+  const st = calcStats(m, 1, bonus()), g = GENES[m.g[0]];
+  const inTeam = S.team.includes(m.id);
+  const need = xpNeed(m.lvl);
+  const pct = Math.round(m.xp / need * 100);
+  return `${art(m.g[0], m.g[1])}
+    <h3>${speciesName(m.g[0], m.g[1])}</h3>
+    <div class="center">${geneChip(m.g[0])} &nbsp; ${geneChip(m.g[1])}</div>
+    <div class="stats"><div><b>${st.hp}</b><span>здоровье</span></div><div><b>${Math.round(st.atk)}</b><span>атака</span></div><div><b>${st.spd}</b><span>скорость</span></div></div>
+    <div class="meta">Уровень ${m.lvl} · опыт ${m.xp}/${need} · поколение ${m.gen}</div>
+    <div class="xp"><i style="width:${pct}%"></i></div>
+    <p class="sub"><b style="color:var(--fg)">${g.sp}.</b> ${g.spDesc}. Перезарядка 3 хода.</p>
+    ${m.arc ? '' : upgradeHTML(m, st)}
+    <div class="row">
+      ${m.arc ? `<button class="btn grow primary" data-act="unarchive" data-id="${m.id}" ${activeCount() >= COLLECTION_CAP ? 'disabled' : ''}>${activeCount() >= COLLECTION_CAP ? 'Нет места в коллекции' : 'Достать из архива'}</button>`
+        : `<button class="btn grow ${inTeam ? '' : 'primary'}" data-act="team" data-id="${m.id}">${inTeam ? 'Убрать из команды' : 'В команду'}</button>`}
+      <button class="btn ${confirmId === m.id ? 'danger' : ''}" data-act="release" data-id="${m.id}">${confirmId === m.id ? `Отпустить за +${RELEASE_REFUND}?` : 'Отпустить'}</button>
+    </div>
+    ${m.arc ? '' : `<div style="margin-top:8px"><button class="btn wide" data-act="archive" data-id="${m.id}" ${inTeam || S.mutants.filter(x => x.arc).length >= ARCHIVE_CAP ? 'disabled' : ''}>${inTeam ? 'В архив (сначала убери из команды)' : 'В архив'}</button></div>`}
+    <div style="margin-top:8px"><button class="btn wide" data-act="close">Закрыть</button></div>`;
+}
+
+/* ---------- БОЙ ---------- */
+function unitHTML(u) {
+  return `<div class="unit" id="u-${u.id}" data-act="target" data-id="${u.id}">
+    ${u.tag ? `<span class="badge boss">${u.tag}</span>` : ''}
+    ${art(u.g[0], u.g[1])}
+    <div class="bar"><i></i></div>
+    <div class="stat-row"><span class="hpn"></span><span class="st"></span></div>
+    <div class="nm">${u.name}</div>
+  </div>`;
+}
+
+function startBattle() {
+  const team = S.team.map(byId).filter(Boolean);
+  if (!team.length) return;
+  const B = newBattle(team, S.foe, bonus());
+  Bt = { B, cur: null, mode: 'attack', auto: false, busy: false, over: false, timer: null };
+  const me = Bt;
+  $('#view').innerHTML = `<div class="battle">
+    <div class="mid"><div class="rd" id="rd"></div><div class="lg" id="lg"></div></div>
+    <div class="field">
+      <div class="col left" id="allies">${B.allies.map(unitHTML).join('')}</div>
+      <div class="col right" id="foes">${B.foes.map(unitHTML).join('')}</div>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div class="ctrl" id="ctrl"></div>
+  </div>`;
+  document.body.classList.add('in-battle');
+  window.scrollTo(0, 0);
+  updateBattle();
+  me.timer = setTimeout(() => { if (Bt === me) battleLoop(); }, 500);
+}
+
+function updateBattle() {
+  if (!Bt) return;
+  const { B, cur } = Bt;
+  const all = [...B.allies, ...B.foes];
+  const playerTurn = cur && cur.side === 'a' && !Bt.auto && !Bt.busy && !Bt.over;
+  const needT = playerTurn && (Bt.mode === 'attack' || GENES[cur.g[0]].needsTarget);
+  all.forEach(u => {
+    const el = $('#u-' + u.id); if (!el) return;
+    const p = u.hp / u.max;
+    const bar = el.querySelector('.bar i');
+    bar.style.width = (p * 100) + '%';
+    bar.className = p < 0.25 ? 'low' : p < 0.55 ? 'mid' : '';
+    el.querySelector('.hpn').textContent = u.hp + '/' + u.max;
+    el.querySelector('.st').innerHTML = u.alive
+      ? (u.poison > 0 ? `<span class="pz">яд ${u.poison}</span>` : '') + (u.side === 'a' ? (u.cd > 0 ? ` ⟳${u.cd}` : ' ✦') : '')
+      : '';
+    el.classList.toggle('dead', !u.alive);
+    el.classList.toggle('cur', !!cur && cur.id === u.id && !Bt.over);
+    el.classList.toggle('tgt', !!needT && u.side === 'f' && u.alive);
+  });
+  $('#rd').textContent = 'Раунд ' + Math.max(1, B.round);
+  const ctrl = $('#ctrl'), hint = $('#hint');
+  if (Bt.over) { ctrl.innerHTML = ''; hint.textContent = ''; return; }
+  const g = cur ? GENES[cur.g[0]] : null;
+  if (playerTurn) {
+    hint.textContent = `Ходит ${cur.name}. ` + (Bt.mode === 'special' && g.needsTarget ? 'Выбери цель для приёма.' : 'Нажми на врага, чтобы ударить.');
+  } else {
+    hint.textContent = Bt.auto ? 'Автобой' : (cur ? `Ходит ${cur.name}` : '');
+  }
+  const spReady = playerTurn && cur.cd === 0;
+  ctrl.innerHTML = `
+    <button class="btn ${Bt.mode === 'attack' ? 'on' : ''}" data-act="mode-attack" ${playerTurn ? '' : 'disabled'}>Удар<small>по цели</small></button>
+    <button class="btn ${Bt.mode === 'special' ? 'on' : ''}" data-act="mode-special" ${spReady ? '' : 'disabled'}>${g && cur.side === 'a' ? g.sp : 'Спецприём'}<small>${cur && cur.side === 'a' ? (cur.cd > 0 ? 'ещё ' + cur.cd + ' хода' : 'готов') : '—'}</small></button>
+    <button class="btn ${Bt.auto ? 'on' : ''}" data-act="auto">Автобой</button>
+    <button class="btn" data-act="retreat">Отступить</button>`;
+}
+
+function pop(id, text, cls) {
+  const el = $('#u-' + id); if (!el) return;
+  const s = document.createElement('span');
+  s.className = 'pop ' + cls; s.textContent = text;
+  el.appendChild(s);
+  setTimeout(() => s.remove(), 1000);
+}
+function playEvents(ev) {
+  ev.forEach(e => {
+    const el = $('#u-' + e.id); if (!el) return;
+    if (e.type === 'acts') {
+      const c = 'lunge-' + e.id[0];
+      el.classList.remove('lunge-a', 'lunge-f'); void el.offsetWidth; el.classList.add(c);
+    }
+    if (e.type === 'dmg' || e.type === 'poison') {
+      el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+      pop(e.id, '-' + e.val, e.type === 'poison' ? 'pz' : e.eff === 'up' ? 'up' : e.eff === 'down' ? 'down' : 'dm');
+    }
+    if (e.type === 'heal') pop(e.id, '+' + e.val, 'hl');
+  });
+}
+
+function battleLoop() {
+  const me = Bt; if (!me) return;
+  const r = nextActor(me.B);
+  playEvents(r.ev);
+  if (!r.u) { me.cur = null; updateBattle(); return finishBattle(); }
+  me.cur = r.u; me.mode = 'attack'; me.busy = false;
+  updateBattle();
+  if (r.u.side === 'f' || me.auto) {
+    me.busy = true;
+    me.timer = setTimeout(() => { if (Bt === me) { const c = aiChoose(me.B, r.u); doAct(r.u, c.kind, c.target); } }, 650);
+  }
+}
+
+function doAct(u, kind, target) {
+  const me = Bt; if (!me) return;
+  me.busy = true;
+  const r = act(me.B, u, kind, target);
+  $('#lg').textContent = r.text;
+  playEvents(r.ev);
+  updateBattle();
+  me.timer = setTimeout(() => { if (Bt === me) battleLoop(); }, 850);
+}
+
+function finishBattle() {
+  const me = Bt; me.over = true;
+  const won = outcome(me.B) === 'win';
+  const rw = rewards(S.stage, won);
+  rw.coins = Math.round(rw.coins * bonus().coinMult);
+  S.coins += rw.coins;
+  const lines = [];
+  S.team.map(byId).forEach((m, i) => {
+    const u = me.B.allies[i];
+    const gain = Math.round(rw.xp * (u && u.alive ? 1 : 0.6));
+    const ups = addXp(m, gain);
+    lines.push(`<li>${speciesName(m.g[0], m.g[1])}: <b>+${gain}</b> опыта${ups.length ? ` · уровень <b>${m.lvl}</b>` : ''}</li>`);
+  });
+  dq('fight'); if (won) dq('win');
+  if (won) {
+    S.wins++; S.stage++; S.best = Math.max(S.best, S.stage);
+    S.foe = genFoeSpec(S.stage);
+  } else S.losses++;
+  save();
+  if (won) submitScore();
+  openModal(`<div class="center"><span class="new">${won ? 'Победа' : 'Поражение'}</span></div>
+    <h3>${won ? 'Арена пройдена' : 'Команду разбили'}</h3>
+    <p class="sub center">${won ? `Открыта стадия ${S.stage}.` : 'Враги остались прежними. Прокачай команду или скрести новых мутантов и попробуй ещё раз.'}</p>
+    <ul class="list"><li>Монеты: <b>+${rw.coins}</b></li>${lines.join('')}</ul>
+    <button class="btn primary wide" data-act="after-battle">Продолжить</button>`);
+}
+
+function leaveBattle() {
+  if (Bt) clearTimeout(Bt.timer);
+  Bt = null; closeModal(); render();
+}
+
+/* ---------- ДЕЙСТВИЯ ---------- */
+function newMutant(g, gen) {
+  const m = { id: S.nextId++, g, lvl: 1, xp: 0, gen };
+  S.mutants.push(m);
+  const k = speciesKey(g[0], g[1]);
+  const fresh = !S.seen[k]; S.seen[k] = 1;
+  const bingo = fresh ? checkBingo(S) : [];
+  return { m, fresh, bingo };
+}
+
+function bingoHTML(lines) {
+  if (!lines.length) return '';
+  return `<div class="bingo-note"><span class="new">Бинго!</span>
+    <ul class="list" style="margin:8px 0 0">${lines.map(l => `<li><b>${l.title}</b>: ${l.desc}. Монеты: <b>+${l.coins}</b></li>`).join('')}</ul></div>`;
+}
+
+function showNewborn(m, fresh, mutated, bingo = []) {
+  openModal(`<div class="center">${fresh ? '<span class="new">Новый вид</span>' : ''}</div>
+    ${art(m.g[0], m.g[1])}
+    <h3>${speciesName(m.g[0], m.g[1])}</h3>
+    <div class="center">${geneChip(m.g[0])} &nbsp; ${geneChip(m.g[1])}</div>
+    <p class="sub center" style="margin-top:10px">${mutated ? 'Случилась мутация: один из генов взялся из ниоткуда. ' : ''}Поколение ${m.gen}, уровень 1.</p>
+    ${bingoHTML(bingo)}
+    <button class="btn primary wide" data-act="close">Отлично</button>`);
+}
+
+function act_(a, d) {
+  const id = d.id ? (isNaN(+d.id) ? d.id : +d.id) : null;
+  switch (a) {
+    case 'tab': tab = d.tab; picks = []; if (tab === 'top') LB.status = 'loading'; render(); window.scrollTo(0, 0); if (tab === 'top') loadTop(); break;
+    case 'refresh-top': LB.status = 'loading'; render(); loadTop(); break;
+    case 'goto-mutants': tab = 'mutants'; render(); break;
+    case 'fight': startBattle(); break;
+    case 'open': { const m = byId(id); if (m) openModal(detailHTML(m)); break; }
+    case 'close': closeModal(); render(); break;
+    case 'team': {
+      const i = S.team.indexOf(id);
+      if (i >= 0) { if (S.team.length > 1) S.team.splice(i, 1); }
+      else if (S.team.length < 3) S.team.push(id);
+      else S.team[2] = id;
+      save(); openModal(detailHTML(byId(id))); render(); break;
+    }
+    case 'lab-claim': {
+      const total = labPending(), give = Math.floor(total);
+      if (give < 1) break;
+      S.coins += give; S.lab = { t: Date.now(), f: total - give };
+      save(); render(); break;
+    }
+    case 'adopt': {
+      const o = legacySave(); if (!o) break;
+      if (confirmId !== 'adopt') { confirmId = 'adopt'; render(); break; }
+      o.uid = TGU.id; o.ts = Date.now();
+      try { localStorage.setItem(LEGACY_KEY + ':claimed', String(TGU.id)); localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) { break; }
+      SM.force = true; SM.dirty = true; smSave();
+      location.reload(); break;
+    }
+    case 'arc-toggle': showArc = !showArc; render(); break;
+    case 'archive': {
+      const m = byId(id);
+      if (!m || m.arc || S.team.includes(id) || S.mutants.filter(x => x.arc).length >= ARCHIVE_CAP) break;
+      m.arc = 1; picks = picks.filter(p => p !== id);
+      save(); closeModal(); render(); break;
+    }
+    case 'unarchive': {
+      const m = byId(id);
+      if (!m || !m.arc || activeCount() >= COLLECTION_CAP) break;
+      delete m.arc; save(); closeModal(); render(); break;
+    }
+    case 'daily': if (Bt) break; openModal(dailyHTML()); break;
+    case 'dq-claim': {
+      ensureDaily();
+      const q = S.daily.quests.find(x => x.id === d.id);
+      if (!q || q.c || q.p < q.n) break;
+      q.c = 1; S.coins += q.r; save(); render(); openModal(dailyHTML()); break;
+    }
+    case 'dq-claim-all': {
+      ensureDaily();
+      S.daily.quests.forEach(q => { if (!q.c && q.p >= q.n) { q.c = 1; S.coins += q.r; } });
+      save(); render(); openModal(dailyHTML()); break;
+    }
+    case 'upgrade': {
+      const m = byId(id);
+      if (!m) break;
+      const cost = upgradeCost(m.lvl);
+      if (S.coins < cost) break;
+      S.coins -= cost; m.lvl++; dq('upgrade');
+      save(); openModal(detailHTML(m)); render(); break;
+    }
+    case 'release': {
+      const rm = byId(id); if (!rm) break;
+      if (!rm.arc && activeCount() <= 1) break;
+      if (confirmId !== id) { confirmId = id; openModal(detailHTML(byId(id))); break; }
+      S.mutants = S.mutants.filter(m => m.id !== id);
+      S.team = S.team.filter(t => t !== id);
+      if (!S.team.length) S.team = active().slice(0, 3).map(m => m.id);
+      picks = picks.filter(p => p !== id);
+      S.coins += RELEASE_REFUND; save(); closeModal(); render(); break;
+    }
+    case 'pick': {
+      const i = picks.indexOf(id);
+      if (i >= 0) picks.splice(i, 1); else { picks.push(id); if (picks.length > 2) picks.shift(); }
+      render(); break;
+    }
+    case 'breed': {
+      if (picks.length !== 2 || S.coins < breedCost() || activeCount() >= COLLECTION_CAP) break;
+      const r = breedGenes(byId(picks[0]), byId(picks[1]));
+      S.coins -= breedCost(); dq('breed');
+      const n = newMutant(r.g, r.gen);
+      picks = []; save(); render(); showNewborn(n.m, n.fresh, r.mutated, n.bingo); break;
+    }
+    case 'buy': {
+      const [a, b] = d.id.split('-');
+      if (!GENES[a] || !GENES[b]) break;
+      const price = a === b ? SAMPLE_COST : HYBRID_COST;
+      if (a !== b && !S.seen[speciesKey(a, b)]) break;
+      if (S.coins < price || activeCount() >= COLLECTION_CAP) break;
+      S.coins -= price;
+      const n = newMutant([a, b], 0);
+      save(); render(); showNewborn(n.m, n.fresh, false, n.bingo); break;
+    }
+    case 'reset':
+      if (confirmId !== 'reset') { confirmId = 'reset'; render(); break; }
+      S = defaults(); S.foe = genFoeSpec(1); picks = []; confirmId = null; save(); if (SM) { SM.force = true; smSave(); } tab = 'arena'; render(); break;
+    case 'bingo-open': tab = 'bingo'; closeModal(); render(); window.scrollTo(0, 0); break;
+    /* бой */
+    case 'mode-attack': if (Bt && Bt.cur && !Bt.busy) { Bt.mode = 'attack'; updateBattle(); } break;
+    case 'mode-special': {
+      if (!Bt || !Bt.cur || Bt.busy || Bt.auto || Bt.cur.side !== 'a' || Bt.cur.cd > 0) break;
+      if (GENES[Bt.cur.g[0]].needsTarget) { Bt.mode = 'special'; updateBattle(); }
+      else doAct(Bt.cur, 'special', null);
+      break;
+    }
+    case 'target': {
+      if (!Bt || !Bt.cur || Bt.busy || Bt.auto || Bt.cur.side !== 'a' || Bt.over) break;
+      const t = Bt.B.foes.find(u => u.id === d.id);
+      if (!t || !t.alive) break;
+      doAct(Bt.cur, Bt.mode, t); break;
+    }
+    case 'auto':
+      if (!Bt || Bt.over) break;
+      Bt.auto = !Bt.auto;
+      if (Bt.auto && Bt.cur && Bt.cur.side === 'a' && !Bt.busy) {
+        const c = aiChoose(Bt.B, Bt.cur); doAct(Bt.cur, c.kind, c.target);
+      } else updateBattle();
+      break;
+    case 'retreat': leaveBattle(); break;
+    case 'after-battle': leaveBattle(); break;
+  }
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]');
+  if (!t) return;
+  if (t.hasAttribute('disabled')) return;
+  act_(t.dataset.act, { id: t.dataset.id, tab: t.dataset.tab });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('#modal').hidden && !(Bt && Bt.over)) { closeModal(); render(); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.mc[data-act]')) { e.preventDefault(); e.target.click(); }
+});
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal' && !(Bt && Bt.over)) { closeModal(); render(); } });
+
+/* ---------- TELEGRAM И РЕЙТИНГ ---------- */
+const API = 'https://arena-api.dan8lggflowersyt.workers.dev';
+const TG = window.Telegram && window.Telegram.WebApp;
+const TG_DATA = TG && TG.initData ? TG.initData : '';
+try {
+  if (TG) {
+    TG.ready(); TG.expand();
+    if (TG.disableVerticalSwipes) TG.disableVerticalSwipes();
+    TG.setHeaderColor('#0f1720'); TG.setBackgroundColor('#0f1720');
+  }
+} catch (e) { /* старый клиент Telegram: игра работает и так */ }
+
+let LB = { status: 'idle', top: [], mine: null };
+
+/* ---------- СИНХРОНИЗАЦИЯ С СЕРВЕРОМ (Cloudflare Worker + база D1) ---------- */
+const SAVE_API = 'https://arena-save.dan8lggflowersyt.workers.dev';
+const canSync = !!(SAVE_API && TG_DATA);
+// старое облако Telegram: читается один раз, чтобы не потерять прогресс прежних версий
+var CS = (TG && TG.CloudStorage && TG.isVersionAtLeast && TG.isVersionAtLeast('6.9')) ? TG.CloudStorage : null;
+var csGet = ks => new Promise(res => CS.getItems(ks, (e, v) => res(e ? null : v)));
+
+const hasProgress = o => !!(o.ts || o.wins || o.losses || o.stage > 1 || (o.mutants && o.mutants.length !== 3));
+const score = o => (o.wins || 0) * 10 + (o.best || o.stage || 1) * 8 + (o.mutants || []).reduce((a, m) => a + (m.lvl || 1), 0) + Object.keys(o.claimed || {}).length * 5;
+
+const SYNC_KEY = KEY + ':sync';
+var SM = null, saveSeq = 0, pushTimer = null, pushing = false, syncErr = '';
+try { SM = JSON.parse(localStorage.getItem(SYNC_KEY)); } catch (e) { SM = null; }
+if (!SM || typeof SM.rev !== 'number') SM = { rev: 0, dirty: null, force: false };   // rev: версия на сервере, на которую опирается это устройство
+function smSave() { try { localStorage.setItem(SYNC_KEY, JSON.stringify(SM)); } catch (e) {} }
+
+function markDirty() { if (!SM) return; saveSeq++; SM.dirty = true; smSave(); schedulePush(); }
+function schedulePush(delay) { if (!canSync) return; clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, delay === undefined ? 4000 : delay); }
+
+async function api(path, body) {
+  const r = await fetch(SAVE_API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: TG_DATA, ...body }) });
+  if (!r.ok) { const e = new Error('http ' + r.status); e.status = r.status; throw e; }
+  return r.json();
+}
+const retryIn = e => (e && e.status === 401 ? 300000 : 30000);
+
+async function pushNow() {
+  if (!canSync || pushing) return;
+  pushing = true;
+  const seq = saveSeq;
+  try {
+    const res = await api('/save', { rev: SM.rev, data: JSON.stringify(S) });
+    syncErr = '';
+    if (res.ok) { SM.rev = res.rev; SM.force = false; if (seq === saveSeq) SM.dirty = false; smSave(); }
+    else if (res.conflict) { pushing = false; await resolve(res); return; }
+  } catch (e) {
+    syncErr = e.status ? 'ошибка ' + e.status : 'нет связи';
+    SM.dirty = true; smSave(); pushing = false; schedulePush(retryIn(e)); return;
+  }
+  pushing = false;
+  if (SM.dirty) schedulePush(2000);
+}
+
+function applyRemote(rev, str) {
+  try { localStorage.setItem(KEY, str); } catch (e) { return; }
+  SM = { rev, dirty: false, force: false }; smSave();
+  location.reload();
+}
+
+// на сервере другая версия, чем та, на которую опирается устройство
+async function resolve(res) {
+  let srv = null; try { srv = res.data ? JSON.parse(res.data) : null; } catch (e) {}
+  const serverOk = !!(srv && Array.isArray(srv.mutants) && srv.mutants.length);
+  const dirty = SM.dirty === null ? hasProgress(S) : SM.dirty;
+  const useServer = serverOk && !SM.force && (!dirty || score(srv) > score(S) || (score(srv) === score(S) && (srv.ts || 0) > (S.ts || 0)));
+  if (useServer) {
+    if (Bt) { setTimeout(syncLoad, 15000); return; }     // не перезагружаем игру посреди боя
+    return applyRemote(res.rev, res.data);
+  }
+  SM.rev = res.rev; SM.dirty = true; smSave(); schedulePush(300);   // локальный прогресс больше: он перезапишет серверный
+}
+
+async function legacyCloudRead() {
+  if (!CS) return null;
+  try {
+    const r = await csGet(['n']); const n = +(r && r.n); if (!n) return null;
+    const parts = await csGet(Array.from({ length: n }, (_, i) => 's' + i)); if (!parts) return null;
+    let str = ''; for (let i = 0; i < n; i++) str += parts['s' + i] || '';
+    const c = JSON.parse(str);
+    return c && Array.isArray(c.mutants) && hasProgress(c) && (!c.uid || !TGU || c.uid === TGU.id) ? c : null;
+  } catch (e) { return null; }
+}
+
+async function syncLoad() {
+  if (!canSync || pushing) return;
+  try {
+    const res = await api('/load', {});
+    syncErr = '';
+    if (SM.dirty === null) { SM.dirty = hasProgress(S); smSave(); }
+    if (!res.data) {                                          // на сервере пусто
+      if (!hasProgress(S)) {
+        const old = await legacyCloudRead();                  // единоразово: сохранение из старого облака Telegram
+        if (old) {
+          old.uid = TGU.id; old.ts = Date.now();
+          try { localStorage.setItem(KEY, JSON.stringify(old)); } catch (e) { return; }
+          SM = { rev: 0, dirty: true, force: false }; smSave(); location.reload(); return;
+        }
+        return;
+      }
+      SM.rev = 0; SM.dirty = true; smSave(); schedulePush(500); return;
+    }
+    if (res.rev === SM.rev) { if (SM.dirty) schedulePush(500); return; }
+    await resolve(res);
+  } catch (e) {
+    syncErr = e.status ? 'ошибка ' + e.status : 'нет связи';
+    if (SM.dirty) schedulePush(retryIn(e));
+  }
+}
+const syncInfo = () => !canSync ? 'Синхронизация работает только внутри Telegram.' : syncErr ? 'Облако: ' + syncErr + ', повторим позже.' : SM.dirty ? 'Облако: отправляем…' : 'Облако: прогресс сохранён.';
+document.addEventListener('visibilitychange', () => {
+  if (!canSync) return;
+  if (document.visibilityState === 'hidden') { if (SM.dirty) pushNow(); }
+  else if (!Bt && !pushing) syncLoad();
+});
+
+// старое сохранение (до привязки к аккаунтам) лежит под общим ключом; забрать его можно только вручную, один раз
+function legacySave() {
+  if (!TGU) return null;
+  try {
+    if (localStorage.getItem(LEGACY_KEY + ':claimed')) return null;
+    const o = JSON.parse(localStorage.getItem(LEGACY_KEY));
+    return o && Array.isArray(o.mutants) && hasProgress(o) ? o : null;
+  } catch (e) { return null; }
+}
+
+async function submitScore() {
+  if (!TG_DATA) return;   // вне Telegram рекорд отправить нельзя
+  try {
+    const r = await fetch(API + '/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: TG_DATA, best: Math.max(S.best || 1, S.stage) })
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d && d.ok) { LB.mine = { best: d.best, rank: d.rank }; if (tab === 'top' && !Bt) render(); }
+  } catch (e) { /* нет связи: рекорд уйдёт при следующей победе */ }
+}
+
+async function loadTop() {
+  try {
+    const r = await fetch(API + '/top');
+    if (!r.ok) throw new Error('bad status');
+    const d = await r.json();
+    LB.top = Array.isArray(d.top) ? d.top : [];
+    LB.status = 'ok';
+  } catch (e) { LB.status = 'error'; }
+  if (tab === 'top' && !Bt) render();
+}
+
+function viewTop() {
+  const mine = LB.mine
+    ? `<p class="sub">Твой рекорд: стадия <b style="color:var(--fg)">${LB.mine.best}</b> · место <b style="color:var(--fg)">${LB.mine.rank}</b></p>` : '';
+  const note = TG_DATA ? '' : `<p class="sub">Чтобы попасть в рейтинг, открой игру через Telegram.</p>`;
+  let body;
+  if (LB.status === 'loading' && !LB.top.length) body = '<p class="sub center" style="margin-top:14px">Загрузка…</p>';
+  else if (LB.status === 'error' && !LB.top.length) body = '<p class="sub center" style="margin-top:14px">Не удалось загрузить рейтинг. Проверь связь и нажми «Обновить».</p>';
+  else if (!LB.top.length) body = '<p class="sub center" style="margin-top:14px">Пока никого нет. Стань первым!</p>';
+  else body = `<ol class="lb">${LB.top.map((r, i) =>
+    `<li><span class="pos">${i + 1}</span><span class="who">${esc(r.name)}</span><span class="sc">стадия ${esc(r.best)}</span></li>`).join('')}</ol>`;
+  return `
+  <section class="panel">
+    <h2 class="h">Рейтинг арены</h2>
+    <p class="sub">Топ-20 по самой высокой достигнутой стадии.</p>
+    ${mine}${note}${body}
+    <div style="margin-top:12px"><button class="btn wide" data-act="refresh-top">Обновить</button></div>
+  </section>`;
+}
+
+syncLoad();
+setInterval(() => { if (tab === 'arena' && !Bt && $('#modal').hidden) updateLab(); }, 20000);
+render();
+submitScore();
+if (pendingBingo.length) {
+  save();
+  openModal(`<div class="center"><span class="new">Бинго!</span></div>
+    <h3>Награды за собранные виды</h3>
+    ${bingoHTML(pendingBingo)}
+    <div style="margin-top:14px"><button class="btn primary wide" data-act="close">Забрать</button></div>`);
+  pendingBingo = [];
+}
+</script>
+
+</body></html>
