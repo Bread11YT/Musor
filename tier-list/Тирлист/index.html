@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<title>Тир-лист</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a1d27">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@600;700&display=swap">
+<style>
+/* Layout: one column. Title, five tier rows (label left, cards right), unsorted pool below, trash bar while dragging. */
+:root {
+  --bg: #eceff5;
+  --surface: #ffffff;
+  --fg: #161a24;
+  --muted: #5b6377;
+  --line: #d3d8e4;
+  --accent: #3a49c8;
+  --accent-fg: #ffffff;
+  --tile: #e3e7f6;
+  --danger: #c8333f;
+  --tier-s: #ff6b6b;
+  --tier-a: #ffa94d;
+  --tier-b: #ffd84d;
+  --tier-c: #8ce07a;
+  --tier-d: #6ec6ff; --tier-e: #b69cff; --tier-f: #ff9ad5; --tier-g: #5fd8c4; --tier-h: #c5c9d6;
+  --tier-fg: #14171f;
+  --font-display: "Unbounded", "Onest", system-ui, sans-serif;
+  --font-body: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11131a; --surface: #1a1d27; --fg: #e8eaf1; --muted: #9aa2b6; --line: #2b3042;
+    --accent: #8f9cff; --accent-fg: #11131a; --tile: #2a3047; --danger: #ff7a85;
+    --tier-s: #e5555a; --tier-a: #e8913a; --tier-b: #e6c53c; --tier-c: #6fc45f; --tier-d: #55aee6; --tier-e: #9c7fe6; --tier-f: #e374b8; --tier-g: #3fbfa9; --tier-h: #8a90a6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11131a; --surface: #1a1d27; --fg: #e8eaf1; --muted: #9aa2b6; --line: #2b3042;
+  --accent: #8f9cff; --accent-fg: #11131a; --tile: #2a3047; --danger: #ff7a85;
+  --tier-s: #e5555a; --tier-a: #e8913a; --tier-b: #e6c53c; --tier-c: #6fc45f; --tier-d: #55aee6; --tier-e: #9c7fe6; --tier-f: #e374b8; --tier-g: #3fbfa9; --tier-h: #8a90a6;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+header { display: flex; flex-direction: column; gap: 6px; }
+.title-input {
+  font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 5vw, 32px);
+  background: transparent; color: var(--fg); border: 0; border-bottom: 2px solid transparent;
+  padding: 4px 0; width: 100%; min-width: 0; border-radius: 0;
+}
+.title-input:hover { border-bottom-color: var(--line); }
+.title-input:focus { outline: none; border-bottom-color: var(--accent); }
+.hint { color: var(--muted); margin: 0; max-width: 62ch; }
+
+.tiers { display: flex; flex-direction: column; gap: 6px; }
+.tier {
+  display: grid; grid-template-columns: 112px minmax(0, 1fr);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+}
+.tier-label { background: var(--c); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 6px; }
+.tier-name { resize: none; overflow: hidden; display: block; line-height: 1.15; white-space: normal; overflow-wrap: anywhere; font-size: 22px; }
+.tier-tools { display: flex; gap: 6px; }
+.tier-tools button {
+  width: 26px; height: 26px; padding: 0; border-radius: 50%; font-size: 15px; line-height: 1; font-weight: 600;
+  border: 1px solid rgba(0, 0, 0, .35); background: rgba(255, 255, 255, .5); color: var(--tier-fg);
+}
+.tier-tools button:hover { background: rgba(255, 255, 255, .85); border-color: rgba(0, 0, 0, .6); }
+.tier-tools button:disabled { opacity: .35; cursor: default; }
+.add-tier { align-self: flex-start; border-style: dashed; color: var(--muted); font-weight: 500; }
+.add-tier:disabled { opacity: .5; cursor: default; }
+.drop-hint { margin: 0; color: var(--muted); font-size: 13px; }
+body.filedrag .pool-card { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.tier-name {
+  width: 100%; min-width: 0; text-align: center; background: transparent; border: 0; border-radius: 4px;
+  font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--tier-fg); padding: 4px 0;
+}
+.tier-name:focus { outline: 2px solid var(--tier-fg); outline-offset: -2px; }
+
+.zone {
+  display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 6px;
+  min-height: 92px; position: relative; transition: background-color .12s;
+}
+.zone:empty::before {
+  content: attr(data-empty); color: var(--muted); font-size: 13px; align-self: center; padding: 0 8px;
+}
+.zone.over { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+.item {
+  width: 80px; height: 80px; flex: none; border-radius: 6px; background: var(--tile) center / cover no-repeat;
+  border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 4px; font-weight: 600; font-size: 13px; line-height: 1.15; overflow: hidden;
+  overflow-wrap: break-word; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none;
+}
+.item.has-img { padding: 0; }
+.item.has-text { width: auto; min-width: 80px; max-width: min(200px, 100%); padding: 4px 10px; }
+.item.is-drag { opacity: .35; }
+.item.ghost {
+  position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; opacity: .95; cursor: grabbing;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .28); transform-origin: center;
+}
+
+.pool-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  display: flex; flex-direction: column; gap: 12px; padding: 14px;
+}
+.pool-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pool-head h2 { margin: 0; font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+.count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pool .zone { padding: 0; min-height: 92px; border-radius: 6px; }
+
+form.add { display: flex; gap: 8px; flex-wrap: wrap; }
+form.add input[type="text"] {
+  flex: 1 1 200px; min-width: 0; font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 9px 12px;
+}
+form.add input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+button, .filebtn {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 6px; padding: 9px 14px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+}
+button:hover, .filebtn:hover { border-color: var(--accent); }
+button:focus-visible, .filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
+.filebtn { display: inline-flex; align-items: center; }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.footer-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.footer-actions button { font-weight: 500; color: var(--muted); }
+
+.trash {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: none;
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--danger) 16%, var(--bg)); border-top: 2px dashed var(--danger);
+  color: var(--danger); font-weight: 600; text-align: center;
+}
+body.dragging .trash { display: block; }
+.trash.over { background: var(--danger); color: #fff; }
+body.dragging { cursor: grabbing; }
+
+@media (max-width: 520px) {
+  .tier { grid-template-columns: 84px minmax(0, 1fr); }
+  .tier-name { font-size: 18px; }
+  .item { width: 68px; height: 68px; font-size: 12px; }
+  .item.has-text { width: auto; min-width: 68px; max-width: min(150px, 100%); padding: 4px 8px; }
+  .zone { min-height: 80px; }
+}
+@media (prefers-reduced-motion: reduce) { .zone { transition: none; } }
+html { color-scheme: light; }
+body { margin: 0; }
+:root:not([data-theme="light"]) { }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <input id="title" class="title-input" type="text" maxlength="60" aria-label="Название тир-листа">
+    <p class="hint">Перетаскивайте карточки по рядам. Ряды можно добавлять, удалять, переименовывать и перекрашивать. Лишнюю карточку перетащите в корзину внизу экрана. Примеры можно убрать кнопкой «Очистить».</p>
+  </header>
+
+  <div id="tiers" class="tiers"></div>
+  <button type="button" class="add-tier" id="addTier">+ Добавить ряд</button>
+
+  <section class="pool-card">
+    <div class="pool-head">
+      <h2>Не распределено</h2>
+      <span class="count" id="count"></span>
+    </div>
+    <form class="add" id="addForm">
+      <input id="newText" type="text" maxlength="40" placeholder="Название карточки" autocomplete="off" aria-label="Название новой карточки">
+      <button class="primary" type="submit" id="addBtn">Добавить</button>
+      <label class="filebtn">Загрузить картинки
+        <input id="files" type="file" accept="image/*" multiple>
+      </label>
+    </form>
+    <p class="drop-hint">Картинки можно перетащить файлами прямо на эту карточку или вставить из буфера обмена. Они обрежутся до квадрата.</p>
+    <div id="pool" class="zone" data-zone="pool" data-empty="Здесь появятся новые карточки"></div>
+  </section>
+
+  <div class="footer-actions">
+    <button type="button" id="clearBtn">Очистить</button>
+    <button type="button" id="resetBtn">Вернуть примеры</button>
+  </div>
+</div>
+
+<div class="trash" id="trash" data-zone="trash">Отпустите здесь, чтобы удалить</div>
+
+<script>
+(function () {
+  var KEY = 'tierlist-v1';
+  var COLORS = ['var(--tier-s)', 'var(--tier-a)', 'var(--tier-b)', 'var(--tier-c)', 'var(--tier-d)', 'var(--tier-e)', 'var(--tier-f)', 'var(--tier-g)', 'var(--tier-h)'];
+  var LETTERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+  var MAX_TIERS = 10;
+
+  function sample() {
+    var names = ['Пицца', 'Суши', 'Борщ', 'Пельмени', 'Шаурма', 'Плов', 'Блины', 'Оливье', 'Хинкали', 'Рамен', 'Окрошка', 'Холодец'];
+    var items = {}, ids = [];
+    names.forEach(function (n, i) { var id = 'i' + i; items[id] = { text: n }; ids.push(id); });
+    return {
+      title: 'Мой тир-лист',
+      next: names.length,
+      items: items,
+      nextTier: 5,
+      tiers: LETTERS.slice(0, 5).map(function (n, i) {
+        return { id: 't' + i, name: n, color: i, items: i === 0 ? ['i0', 'i1'] : i === 1 ? ['i2', 'i3', 'i8'] : i === 2 ? ['i4', 'i5', 'i9'] : i === 3 ? ['i6', 'i7'] : [] };
+      }),
+      pool: ['i10', 'i11']
+    };
+  }
+
+  var state;
+  try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) { state = null; }
+  if (!state || !state.tiers || !state.tiers.length) state = sample();
+  state.nextTier = state.nextTier || 100;
+  state.tiers.forEach(function (t, i) { if (typeof t.color !== 'number') t.color = i; });
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
+  }
+
+  var tiersEl = document.getElementById('tiers');
+  var poolEl = document.getElementById('pool');
+  var trashEl = document.getElementById('trash');
+  var titleEl = document.getElementById('title');
+  var countEl = document.getElementById('count');
+
+  function makeItem(id) {
+    var data = state.items[id];
+    var el = document.createElement('div');
+    el.className = 'item';
+    el.dataset.id = id;
+    if (data.img) {
+      el.classList.add('has-img');
+      el.style.backgroundImage = 'url(' + data.img + ')';
+      el.title = data.text || '';
+    } else {
+      el.classList.add('has-text');
+      el.textContent = data.text;
+      var longest = data.text.split(/\s+/).reduce(function (m, w) { return Math.max(m, w.length); }, 0);
+      if (longest > 18) el.style.fontSize = '10px';
+      else if (longest > 13) el.style.fontSize = '11px';
+    }
+    return el;
+  }
+
+  function render() {
+    titleEl.value = state.title;
+    tiersEl.innerHTML = '';
+    state.tiers.forEach(function (t, i) {
+      var row = document.createElement('div');
+      row.className = 'tier';
+      var label = document.createElement('div');
+      label.className = 'tier-label';
+      label.style.setProperty('--c', COLORS[t.color % COLORS.length]);
+      var input = document.createElement('textarea');
+      input.className = 'tier-name';
+      input.rows = 1;
+      input.maxLength = 30;
+      input.value = t.name;
+      input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); } });
+      input.setAttribute('aria-label', 'Название ряда ' + (i + 1));
+      input.addEventListener('input', function () {
+        t.name = input.value.replace(/\n/g, ' '); fitName(input); save();
+      });
+      label.appendChild(input);
+      var tools = document.createElement('div');
+      tools.className = 'tier-tools';
+      var colorBtn = document.createElement('button');
+      colorBtn.type = 'button'; colorBtn.textContent = '◐';
+      colorBtn.title = 'Сменить цвет'; colorBtn.setAttribute('aria-label', 'Сменить цвет ряда ' + t.name);
+      colorBtn.addEventListener('click', function () {
+        syncFromDom(); t.color = (t.color + 1) % COLORS.length; save(); render();
+      });
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button'; delBtn.textContent = '×';
+      delBtn.title = 'Удалить ряд (карточки вернутся вниз)'; delBtn.setAttribute('aria-label', 'Удалить ряд ' + t.name);
+      delBtn.disabled = state.tiers.length <= 1;
+      delBtn.addEventListener('click', function () {
+        syncFromDom();
+        state.pool = state.pool.concat(t.items);
+        state.tiers.splice(i, 1);
+        save(); render();
+      });
+      tools.appendChild(colorBtn); tools.appendChild(delBtn);
+      label.appendChild(tools);
+      var zone = document.createElement('div');
+      zone.className = 'zone';
+      zone.dataset.zone = 'tier:' + i;
+      zone.dataset.empty = 'Перетащите сюда';
+      t.items.forEach(function (id) { if (state.items[id]) zone.appendChild(makeItem(id)); });
+      row.appendChild(label);
+      row.appendChild(zone);
+      tiersEl.appendChild(row);
+      fitName(input);
+    });
+    poolEl.innerHTML = '';
+    state.pool.forEach(function (id) { if (state.items[id]) poolEl.appendChild(makeItem(id)); });
+    updateCount();
+    document.getElementById('addTier').disabled = state.tiers.length >= MAX_TIERS;
+  }
+
+  function fitName(el) {
+    var narrow = window.matchMedia('(max-width: 520px)').matches;
+    var longest = el.value.split(/\s+/).reduce(function (m, w) { return Math.max(m, w.length); }, 0);
+    var size = longest > 12 ? 11 : longest > 9 ? 13 : longest > 6 ? 15 : longest > 3 ? (narrow ? 17 : 19) : (narrow ? 18 : 22);
+    el.style.fontSize = size + 'px';
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {
+    Array.prototype.forEach.call(document.querySelectorAll('.tier-name'), fitName);
+  });
+
+  function updateCount() {
+    var n = state.pool.length;
+    countEl.textContent = n ? n + ' шт.' : '';
+  }
+
+  function syncFromDom() {
+    function ids(zone) {
+      return Array.prototype.map.call(zone.querySelectorAll(':scope > .item'), function (el) { return el.dataset.id; });
+    }
+    var zones = tiersEl.querySelectorAll('.zone');
+    state.tiers.forEach(function (t, i) { t.items = ids(zones[i]); });
+    state.pool = ids(poolEl);
+  }
+
+  function addItem(data) {
+    var id = 'i' + (state.next++);
+    state.items[id] = data;
+    state.pool.push(id);
+  }
+
+  /* ---------- add ---------- */
+  document.getElementById('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = document.getElementById('newText');
+    var text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    addItem({ text: text });
+    input.value = '';
+    save(); render(); input.focus();
+  });
+
+  function readImage(file) {
+    return new Promise(function (resolve) {
+      var fr = new FileReader();
+      fr.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          var S = 160, c = document.createElement('canvas');
+          c.width = S; c.height = S;
+          var side = Math.min(img.width, img.height);
+          var sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+          c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, S, S);
+          resolve(c.toDataURL('image/jpeg', 0.82));
+        };
+        img.onerror = function () { resolve(null); };
+        img.src = fr.result;
+      };
+      fr.onerror = function () { resolve(null); };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function addFiles(list) {
+    var files = Array.prototype.filter.call(list || [], function (f) { return /^image\//.test(f.type); });
+    if (!files.length) return;
+    syncFromDom();
+    Promise.all(files.map(readImage)).then(function (urls) {
+      files.forEach(function (f, i) {
+        if (urls[i]) addItem({ text: (f.name || 'Картинка').replace(/\.[^.]+$/, ''), img: urls[i] });
+      });
+      save(); render();
+    });
+  }
+
+  document.getElementById('files').addEventListener('change', function (e) {
+    addFiles(e.target.files);
+    e.target.value = '';
+  });
+  window.addEventListener('dragover', function (e) {
+    if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0) {
+      e.preventDefault(); document.body.classList.add('filedrag');
+    }
+  });
+  window.addEventListener('dragleave', function (e) { if (!e.relatedTarget) document.body.classList.remove('filedrag'); });
+  window.addEventListener('drop', function (e) {
+    document.body.classList.remove('filedrag');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); }
+  });
+  window.addEventListener('paste', function (e) {
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) addFiles(e.clipboardData.files);
+  });
+
+  document.getElementById('addTier').addEventListener('click', function () {
+    if (state.tiers.length >= MAX_TIERS) return;
+    var n = state.tiers.length;
+    syncFromDom();
+    state.tiers.push({ id: 't' + (state.nextTier++), name: LETTERS[n] || String(n + 1), color: n % COLORS.length, items: [] });
+    save(); render();
+  });
+
+  /* ---------- title ---------- */
+  titleEl.addEventListener('input', function () { state.title = titleEl.value; save(); });
+
+  /* ---------- two-step buttons ---------- */
+  function twoStep(btn, armedLabel, action) {
+    var idle = btn.textContent, timer = null;
+    btn.addEventListener('click', function () {
+      if (btn.classList.contains('armed')) {
+        clearTimeout(timer);
+        btn.classList.remove('armed'); btn.textContent = idle;
+        action();
+        return;
+      }
+      btn.classList.add('armed'); btn.textContent = armedLabel;
+      timer = setTimeout(function () { btn.classList.remove('armed'); btn.textContent = idle; }, 3000);
+    });
+  }
+  twoStep(document.getElementById('clearBtn'), 'Удалить все карточки?', function () {
+    state.items = {};
+    state.tiers.forEach(function (t) { t.items = []; });
+    state.pool = [];
+    save(); render();
+  });
+  twoStep(document.getElementById('resetBtn'), 'Заменить примерами?', function () {
+    state = sample(); save(); render();
+  });
+
+  /* ---------- drag and drop (pointer events: mouse and touch) ---------- */
+  var drag = null;
+
+  document.addEventListener('pointerdown', function (e) {
+    if (e.button > 0) return;
+    var el = e.target.closest ? e.target.closest('.item') : null;
+    if (!el || el.classList.contains('ghost')) return;
+    drag = { el: el, sx: e.clientX, sy: e.clientY, started: false, ghost: null, ox: 0, oy: 0, overTrash: false };
+  });
+
+  function startDrag(e) {
+    var r = drag.el.getBoundingClientRect();
+    drag.ox = e.clientX - r.left;
+    drag.oy = e.clientY - r.top;
+    var g = drag.el.cloneNode(true);
+    g.classList.add('ghost');
+    g.style.width = r.width + 'px';
+    g.style.height = r.height + 'px';
+    document.body.appendChild(g);
+    drag.ghost = g;
+    drag.el.classList.add('is-drag');
+    document.body.classList.add('dragging');
+    drag.started = true;
+  }
+
+  function clearOver() {
+    document.querySelectorAll('.zone.over, .trash.over').forEach(function (z) { z.classList.remove('over'); });
+  }
+
+  function place(zone, x, y) {
+    var el = drag.el, before = null;
+    var kids = Array.prototype.filter.call(zone.children, function (c) { return c !== el && c.classList.contains('item'); });
+    for (var i = 0; i < kids.length; i++) {
+      var r = kids[i].getBoundingClientRect();
+      if (y < r.top || (y <= r.bottom && x < r.left + r.width / 2)) { before = kids[i]; break; }
+    }
+    if (el.parentNode !== zone || el.nextElementSibling !== before) zone.insertBefore(el, before);
+  }
+
+  document.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    if (!drag.started) {
+      if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+      startDrag(e);
+    }
+    e.preventDefault();
+    drag.ghost.style.transform = 'translate(' + (e.clientX - drag.ox) + 'px,' + (e.clientY - drag.oy) + 'px) scale(1.05)';
+    var under = document.elementFromPoint(e.clientX, e.clientY);
+    var zone = under && under.closest ? under.closest('[data-zone]') : null;
+    clearOver();
+    drag.overTrash = false;
+    if (!zone) return;
+    zone.classList.add('over');
+    if (zone.dataset.zone === 'trash') { drag.overTrash = true; return; }
+    place(zone, e.clientX, e.clientY);
+  }, { passive: false });
+
+  function endDrag() {
+    if (!drag) return;
+    var d = drag; drag = null;
+    if (!d.started) return;
+    d.ghost.remove();
+    document.body.classList.remove('dragging');
+    clearOver();
+    if (d.overTrash) {
+      var id = d.el.dataset.id;
+      d.el.remove();
+      delete state.items[id];
+    }
+    syncFromDom();
+    save(); render();
+  }
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
+
+  render();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) { window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); }); }
+</script>
+</body>
+</html>
