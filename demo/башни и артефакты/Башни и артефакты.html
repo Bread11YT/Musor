@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Башни и артефакты</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e9eeed;--panel:#fff;--ink:#14242c;--mute:#5a6d76;--line:#c6d2d0;--acc:#0b8a79;--accink:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a1318;--panel:#12212a;--ink:#e5eeed;--mute:#8aa0a8;--line:#24404a;--acc:#3dd6bf;--accink:#08201c}}
+:root[data-theme="dark"]{--bg:#0a1318;--panel:#12212a;--ink:#e5eeed;--mute:#8aa0a8;--line:#24404a;--acc:#3dd6bf;--accink:#08201c}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:500 15px/1.35 "Bricolage Grotesque",system-ui,sans-serif;display:flex;justify-content:center}
+#app{width:100%;max-width:720px;padding:10px;display:flex;flex-direction:column;gap:8px}
+#top{display:flex;align-items:center;gap:8px}
+#hud{display:flex;gap:14px;font-weight:700;flex:1;font-size:17px}
+canvas{width:100%;height:auto;border-radius:10px;display:block;touch-action:manipulation;background:#0f1f27}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:700;color:var(--ink);background:transparent;border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+.btn.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc) inset}
+.btn.dim{opacity:.45}
+.btn.main{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible,.gem:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.gem{width:42px;height:42px;border-radius:50%;border:2px solid var(--line);background:var(--g);font:700 16px "Bricolage Grotesque",system-ui,sans-serif;color:#10222a;cursor:pointer}
+.gem.e{background:transparent;border-style:dashed;cursor:default}
+.gem.on{outline:3px solid var(--ink);outline-offset:2px}
+.hint{color:var(--mute);font-size:14px;min-height:38px}
+#ov{position:fixed;inset:0;background:rgba(5,12,16,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
+#ov[hidden]{display:none}
+#ov .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:460px;width:100%;display:flex;flex-direction:column;gap:12px}
+#ov h2{margin:0;font-size:22px}
+.pick{display:flex;gap:12px;align-items:center;text-align:left;width:100%}
+.pick .gem{flex:none;cursor:inherit}
+.pick small{display:block;color:var(--mute);font-weight:500}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top"><div id="hud"></div><button class="btn" id="spd">x1</button><button class="btn main" id="go">Старт волны</button></div>
+  <canvas id="cv"></canvas>
+  <div class="panel">
+    <div class="row" id="bl"></div>
+    <div class="row" id="inv"></div>
+    <div id="tp" class="hint"></div>
+  </div>
+</div>
+<div id="ov" hidden><div class="box" id="ob"></div></div>
+<script>
+const S=56,C=12,R=8,cv=document.getElementById('cv'),x=cv.getContext('2d');
+cv.width=C*S*2;cv.height=R*S*2;x.scale(2,2);
+const $=id=>document.getElementById(id);
+const T={
+ arrow:{n:'Стрелок',cost:50,dmg:8,rate:.45,rng:2.6,col:'#f2c14e',d:'быстрый, бьёт одну цель'},
+ cannon:{n:'Пушка',cost:90,dmg:24,rate:1.5,rng:2.8,sp:1.1,col:'#ef7b45',d:'медленная, урон по области'},
+ frost:{n:'Мороз',cost:70,dmg:4,rate:.8,rng:2.4,slow:.4,col:'#6ec6ff',d:'замедляет врагов'}
+};
+const A={
+ ruby:{n:'Рубин',d:'+35% урона',c:'#ff5d6c'},
+ gear:{n:'Шестерня',d:'+35% скорости атаки',c:'#ffb347'},
+ lens:{n:'Линза',d:'+1 клетка радиуса',c:'#4cc9f0'},
+ venom:{n:'Яд',d:'отравляет: 5 урона в секунду, 3 с',c:'#9be15d'},
+ rime:{n:'Иней',d:'замедляет цель на 35%',c:'#b8a1ff'},
+ coin:{n:'Золотая жила',d:'+2 золота за каждое убийство',c:'#ffd23f'},
+ bolt:{n:'Молния',d:'удар перескакивает ещё на 2 цели (50% урона)',c:'#5eead4'}
+};
+const WP=[[-1,1],[10,1],[10,3],[1,3],[1,6],[12,6]].map(p=>[(p[0]+.5)*S,(p[1]+.5)*S]);
+const L=[];let tot=0;
+for(let i=1;i<WP.length;i++){const l=Math.hypot(WP[i][0]-WP[i-1][0],WP[i][1]-WP[i-1][1]);L.push(l);tot+=l}
+function at(d){for(let i=0;i<L.length;i++){if(d<=L[i]){const f=d/L[i];return[WP[i][0]+(WP[i+1][0]-WP[i][0])*f,WP[i][1]+(WP[i+1][1]-WP[i][1])*f]}d-=L[i]}return WP[WP.length-1]}
+const blk=new Set();
+for(let i=1;i<WP.length;i++){
+ const a=WP[i-1].map(v=>Math.round(v/S-.5)),b=WP[i].map(v=>Math.round(v/S-.5));
+ for(let c=Math.min(a[0],b[0]);c<=Math.max(a[0],b[0]);c++)for(let r=Math.min(a[1],b[1]);r<=Math.max(a[1],b[1]);r++)blk.add(c+','+r);
+}
+let g,hv=null,lastGold=-1;
+function init(){
+ g={gold:120,lives:20,wave:0,state:'draft',en:[],tw:[],pr:[],fx:[],q:0,sp:0,i:0,inv:[],sel:null,tsel:null,spd:1};
+ $('spd').textContent='x1';draft();ui();
+}
+function st(t){
+ const b=T[t.type],ar=t.art.filter(Boolean);let dm=1,rt=1,rg=0,res=0;
+ for(const a of ar){if(a=='ruby')dm+=.35;if(a=='gear')rt+=.35;if(a=='lens')rg+=1}
+ for(const o of g.tw)if(o!==t&&Math.hypot(o.c-t.c,o.r-t.r)<1.5)for(const a of ar)if(o.art.includes(a))res++;
+ dm+=res*.15;
+ return{dmg:b.dmg*dm,rate:b.rate/rt,rng:(b.rng+rg)*S,ar,res};
+}
+function startWave(){if(g.state!='build')return;g.wave++;g.q=6+g.wave*2;g.sp=0;g.i=0;g.state='wave';ui()}
+function spawn(last){
+ const w=g.wave,i=g.i++;
+ let hp=18*Math.pow(1.22,w-1),sp=44+w*1.2,rew=4,col='#e5e9ec',r=9;
+ if(i%5==4){hp*=3;sp*=.7;rew=9;col='#a78bfa';r=12}
+ else if(i%3==2){hp*=.6;sp*=1.5;col='#ff8fab';r=7}
+ if(w%5==0&&last){hp*=9;sp*=.6;rew=40;col='#ff4d4d';r=16}
+ g.en.push({d:0,hp,mx:hp,sp,rew,col,r,slow:0,st:0,pz:0,pt:0,by:null});
+}
+function hit(e,t,dmg,full){
+ e.hp-=dmg;e.by=t;if(!full)return;
+ if(t.art.includes('venom')){e.pz=5;e.pt=3}
+ let sl=T[t.type].slow||0;if(t.art.includes('rime'))sl=Math.max(sl,.35);
+ if(sl){e.slow=Math.max(e.st>0?e.slow:0,sl);e.st=1.5}
+}
+function impact(p,e,q){
+ const t=p.t,s=p.s;hit(e,t,s.dmg,1);
+ if(t.type=='cannon'){
+  for(const o of g.en)if(o!==e&&!o.out&&o.hp>0){const pp=at(o.d);if(Math.hypot(pp[0]-q[0],pp[1]-q[1])<=T.cannon.sp*S)hit(o,t,s.dmg*.6,1)}
+  g.fx.push({k:'b',x:q[0],y:q[1],r:T.cannon.sp*S,t:.25,c:T.cannon.col});
+ }
+ if(s.ar.includes('bolt')){
+  let n=0;
+  for(const o of g.en){if(n>=2)break;if(o===e||o.out||o.hp<=0)continue;const pp=at(o.d);
+   if(Math.hypot(pp[0]-q[0],pp[1]-q[1])<=1.8*S){hit(o,t,s.dmg*.5,0);g.fx.push({k:'l',x:q[0],y:q[1],x2:pp[0],y2:pp[1],t:.15});n++}}
+ }
+}
+function upd(dt){
+ if(g.state=='over'||g.state=='draft')return;
+ if(g.state=='wave'){g.sp-=dt;if(g.q>0&&g.sp<=0){spawn(g.q==1);g.q--;g.sp=.75}}
+ for(const e of g.en){
+  let m=1;if(e.st>0){e.st-=dt;m=1-e.slow}
+  if(e.pt>0){e.pt-=dt;e.hp-=e.pz*dt}
+  e.d+=e.sp*m*dt;
+  if(e.d>=tot&&!e.out){e.out=1;g.lives--}
+ }
+ for(const t of g.tw){
+  t.cd-=dt;if(t.cd>0)continue;
+  const s=st(t),px=(t.c+.5)*S,py=(t.r+.5)*S;let best=null,bd=-1;
+  for(const e of g.en){if(e.hp<=0||e.out)continue;const p=at(e.d);if(Math.hypot(p[0]-px,p[1]-py)<=s.rng&&e.d>bd){bd=e.d;best=e}}
+  if(best){t.cd=s.rate;g.pr.push({x:px,y:py,e:best,t,s})}
+ }
+ for(const p of g.pr){
+  const e=p.e;if(e.hp<=0||e.out){p.dead=1;continue}
+  const q=at(e.d),dx=q[0]-p.x,dy=q[1]-p.y,dd=Math.hypot(dx,dy),mv=380*dt;
+  if(dd<=mv){p.dead=1;impact(p,e,q)}else{p.x+=dx/dd*mv;p.y+=dy/dd*mv}
+ }
+ for(const e of g.en)if(e.hp<=0&&!e.out&&!e.dead){e.dead=1;g.gold+=e.rew+(e.by&&e.by.art.includes('coin')?2:0)}
+ g.en=g.en.filter(e=>!e.dead&&!e.out);g.pr=g.pr.filter(p=>!p.dead);
+ for(const f of g.fx)f.t-=dt;g.fx=g.fx.filter(f=>f.t>0);
+ if(g.lives<=0){g.lives=0;return end(false)}
+ if(g.state=='wave'&&g.q==0&&!g.en.length){
+  g.gold+=15+g.wave*3;
+  if(g.wave>=15)return end(true);
+  g.state='draft';draft();
+ }
+}
+function overlay(html){$('ob').innerHTML=html;$('ov').hidden=false}
+function draft(){
+ const ks=Object.keys(A).sort(()=>Math.random()-.5).slice(0,3);
+ overlay(`<h2>${g.wave?'Волна '+g.wave+' пройдена':'Выбери первый артефакт'}</h2><div class="hint">Возьми один артефакт. Потом выбери башню и нажми на артефакт — он встанет в её слот.</div>`+
+  ks.map(k=>`<button class="btn pick" data-p="${k}"><span class="gem" style="--g:${A[k].c}">${A[k].n[0]}</span><span><b>${A[k].n}</b><small>${A[k].d}</small></span></button>`).join(''));
+}
+function end(win){
+ g.state='over';
+ overlay(`<h2>${win?'Победа!':'Поражение'}</h2><div class="hint">${win?'Все 15 волн отбиты.':'Ты продержался до волны '+g.wave+'.'}</div><button class="btn main" data-r="1">Играть снова</button>`);
+}
+function equip(t,i){
+ const a=g.inv[i];let s=t.art.indexOf(null);
+ if(s<0){s=1;g.inv.push(t.art[1])}
+ t.art[s]=a;g.inv.splice(i,1);
+}
+function ui(){
+ lastGold=g.gold;
+ $('hud').innerHTML=`<span>♥ ${g.lives}</span><span>◉ ${g.gold}</span><span>Волна ${g.wave}/15</span>`;
+ $('go').disabled=g.state!='build';
+ $('go').textContent=g.state=='wave'?'Идёт волна…':'Старт волны';
+ $('bl').innerHTML=Object.entries(T).map(([k,d])=>`<button class="btn ${g.sel&&g.sel.k=='build'&&g.sel.t==k?'on':''} ${g.gold<d.cost?'dim':''}" data-b="${k}">${d.n} ${d.cost}</button>`).join('');
+ $('inv').innerHTML=g.inv.length?g.inv.map((k,i)=>`<button class="gem ${g.sel&&g.sel.k=='art'&&g.sel.i==i?'on':''}" style="--g:${A[k].c}" data-i="${i}" title="${A[k].n}: ${A[k].d}">${A[k].n[0]}</button>`).join(''):'<span class="hint" style="min-height:0">Инвентарь артефактов пуст</span>';
+ const t=g.tsel;let h='';
+ if(t){
+  const s=st(t);
+  h=`<b>${T[t.type].n}</b>: урон ${s.dmg.toFixed(0)}, ${(1/s.rate).toFixed(1)} выстр/с, радиус ${(s.rng/S).toFixed(1)}${s.res?', резонанс x'+s.res:''}<div class="row" style="margin-top:6px">`+
+   t.art.map((a,i)=>a?`<button class="gem" style="--g:${A[a].c}" data-s="${i}" title="Снять: ${A[a].n}">${A[a].n[0]}</button>`:`<span class="gem e"></span>`).join('')+
+   `<button class="btn" data-sell="1">Продать +${Math.floor(T[t.type].cost*.6)}</button></div>`;
+ }else if(g.sel&&g.sel.k=='art'){const a=A[g.inv[g.sel.i]];h=`<b>${a.n}</b>: ${a.d}. Нажми на башню, чтобы вставить.`}
+ else if(g.sel&&g.sel.k=='build'){h=`<b>${T[g.sel.t].n}</b>: ${T[g.sel.t].d}. Нажми на свободную клетку.`}
+ else h='Выбери башню внизу и поставь её рядом с дорогой. Одинаковые артефакты у соседних башен усиливают друг друга (резонанс, +15% урона).';
+ $('tp').innerHTML=h;
+}
+cv.addEventListener('pointerdown',ev=>{
+ const b=cv.getBoundingClientRect(),c=Math.floor((ev.clientX-b.left)/b.width*C),r=Math.floor((ev.clientY-b.top)/b.height*R);
+ if(g.state=='over'||g.state=='draft')return;
+ const t=g.tw.find(t=>t.c==c&&t.r==r);
+ if(t){if(g.sel&&g.sel.k=='art'){equip(t,g.sel.i);g.sel=null}g.tsel=t;ui();return}
+ if(g.sel&&g.sel.k=='build'&&!blk.has(c+','+r)){
+  const d=T[g.sel.t];
+  if(g.gold>=d.cost){g.gold-=d.cost;const n={c,r,type:g.sel.t,cd:0,art:[null,null]};g.tw.push(n);g.tsel=n}
+ }else g.tsel=null;
+ ui();
+});
+cv.addEventListener('pointermove',ev=>{const b=cv.getBoundingClientRect();hv=[Math.floor((ev.clientX-b.left)/b.width*C),Math.floor((ev.clientY-b.top)/b.height*R)]});
+cv.addEventListener('pointerleave',()=>hv=null);
+document.addEventListener('click',ev=>{
+ const el=ev.target.closest('[data-b],[data-i],[data-s],[data-sell],[data-p],[data-r]');if(!el)return;
+ const d=el.dataset;
+ if(d.p){g.inv.push(d.p);g.state='build';$('ov').hidden=true}
+ else if(d.r){$('ov').hidden=true;init()}
+ else if(d.b){g.sel={k:'build',t:d.b};g.tsel=null}
+ else if(d.i!==undefined){const i=+d.i;if(g.tsel)equip(g.tsel,i);else g.sel=g.sel&&g.sel.k=='art'&&g.sel.i==i?null:{k:'art',i}}
+ else if(d.s!==undefined){const a=g.tsel.art[+d.s];g.tsel.art[+d.s]=null;g.inv.push(a)}
+ else if(d.sell){const t=g.tsel;g.gold+=Math.floor(T[t.type].cost*.6);t.art.forEach(a=>a&&g.inv.push(a));g.tw=g.tw.filter(o=>o!==t);g.tsel=null}
+ ui();
+});
+$('go').onclick=startWave;
+$('spd').onclick=()=>{g.spd=g.spd==1?2:1;$('spd').textContent='x'+g.spd};
+function draw(){
+ x.fillStyle='#0f1f27';x.fillRect(0,0,C*S,R*S);
+ for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+  x.fillStyle=blk.has(c+','+r)?'#2a4755':((r+c)%2?'#12252e':'#102229');
+  x.fillRect(c*S+1,r*S+1,S-2,S-2);
+ }
+ const sel=g.tsel;
+ if(sel){const s=st(sel);x.strokeStyle='rgba(255,255,255,.35)';x.lineWidth=1.5;x.beginPath();x.arc((sel.c+.5)*S,(sel.r+.5)*S,s.rng,0,7);x.stroke()}
+ if(hv&&g.sel&&g.sel.k=='build'&&!blk.has(hv[0]+','+hv[1])&&hv[0]>=0&&hv[0]<C&&hv[1]>=0&&hv[1]<R){
+  x.fillStyle='rgba(255,255,255,.12)';x.fillRect(hv[0]*S+1,hv[1]*S+1,S-2,S-2);
+  x.strokeStyle='rgba(255,255,255,.25)';x.beginPath();x.arc((hv[0]+.5)*S,(hv[1]+.5)*S,T[g.sel.t].rng*S,0,7);x.stroke();
+ }
+ for(const t of g.tw){
+  const px=(t.c+.5)*S,py=(t.r+.5)*S,col=T[t.type].col;
+  x.fillStyle='#0a161c';x.fillRect(t.c*S+5,t.r*S+5,S-10,S-10);
+  x.strokeStyle=t===sel?'#fff':col;x.lineWidth=2;x.strokeRect(t.c*S+5,t.r*S+5,S-10,S-10);
+  x.fillStyle=col;x.beginPath();
+  if(t.type=='arrow'){x.moveTo(px,py-12);x.lineTo(px+11,py+8);x.lineTo(px-11,py+8)}
+  else if(t.type=='cannon'){x.arc(px,py-2,11,0,7)}
+  else{x.moveTo(px,py-13);x.lineTo(px+10,py-2);x.lineTo(px,py+9);x.lineTo(px-10,py-2)}
+  x.fill();
+  t.art.forEach((a,i)=>{x.beginPath();x.arc(px-8+i*16,py+17,4.5,0,7);if(a){x.fillStyle=A[a].c;x.fill()}else{x.strokeStyle='#4a6672';x.lineWidth=1;x.stroke()}});
+ }
+ for(const e of g.en){
+  const p=at(e.d);
+  x.fillStyle=e.col;x.beginPath();x.arc(p[0],p[1],e.r,0,7);x.fill();
+  if(e.st>0){x.strokeStyle='#6ec6ff';x.lineWidth=2;x.beginPath();x.arc(p[0],p[1],e.r+2,0,7);x.stroke()}
+  if(e.pt>0){x.strokeStyle='#9be15d';x.lineWidth=2;x.beginPath();x.arc(p[0],p[1],e.r+4,0,7);x.stroke()}
+  x.fillStyle='#000';x.fillRect(p[0]-12,p[1]-e.r-8,24,4);
+  x.fillStyle='#5be37d';x.fillRect(p[0]-12,p[1]-e.r-8,24*Math.max(0,e.hp/e.mx),4);
+ }
+ for(const p of g.pr){x.fillStyle=T[p.t.type].col;x.beginPath();x.arc(p.x,p.y,3.5,0,7);x.fill()}
+ for(const f of g.fx){
+  if(f.k=='b'){x.globalAlpha=f.t*3;x.fillStyle=f.c;x.beginPath();x.arc(f.x,f.y,f.r,0,7);x.fill();x.globalAlpha=1}
+  else{x.strokeStyle='#5eead4';x.lineWidth=2;x.beginPath();x.moveTo(f.x,f.y);x.lineTo(f.x2,f.y2);x.stroke()}
+ }
+}
+let last=performance.now();
+function loop(n){
+ const dt=Math.min(.05,(n-last)/1000)*g.spd;last=n;
+ upd(dt);draw();
+ if(g.gold!=lastGold)ui();
+ requestAnimationFrame(loop);
+}
+init();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
