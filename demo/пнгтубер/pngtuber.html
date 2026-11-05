@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PNGtuber</title>
+<style>
+:root{--stage:#00b140;--ink:#f3ecff;--panel:#241a33;--line:#4a3a66;--accent:#ff8fb1}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;font:14px/1.4 system-ui,"Segoe UI",sans-serif;background:var(--stage)}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#char{height:var(--size,60vmin);max-width:90vw;object-fit:contain;transition:transform .09s ease-out;user-select:none;-webkit-user-drag:none}
+#char.talk.bounce{transform:translateY(-3.5vmin)}
+#panel{position:fixed;top:12px;left:12px;width:290px;max-height:calc(100% - 24px);overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 8px 30px #0006}
+#panel.hidden{display:none}
+h1{font-size:17px;margin:0 0 10px}
+label{display:block;margin:10px 0 4px;color:#cdbfe6}
+.row{display:flex;gap:8px;align-items:center}
+.row label{margin:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select,button{width:100%;padding:8px;border-radius:8px;border:1px solid var(--line);background:#33264a;color:var(--ink);font:inherit}
+button{cursor:pointer;background:var(--accent);color:#2a0f1b;border:0;font-weight:600;margin-top:10px}
+button.alt{background:#33264a;color:var(--ink);border:1px solid var(--line);font-weight:400}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.files{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.drop{border:1px dashed var(--line);border-radius:10px;padding:6px;text-align:center;cursor:pointer;font-size:12px}
+.drop img{width:100%;height:70px;object-fit:contain;display:block;margin-bottom:4px}
+.drop input{display:none}
+.meter{position:relative;height:12px;background:#33264a;border-radius:6px;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;width:0;background:var(--accent)}
+.meter b{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+#msg{min-height:18px;margin-top:8px;color:#ffb3b3;font-size:12px}
+small{color:#a99bc4}
+</style>
+</head>
+<body>
+<div id="stage"><img id="char" alt="Персонаж" draggable="false"></div>
+
+<div id="panel">
+  <h1>PNGtuber</h1>
+
+  <div class="files">
+    <label class="drop"><img id="pvIdle" alt="">Молчит<input type="file" accept="image/*" id="fIdle"></label>
+    <label class="drop"><img id="pvTalk" alt="">Говорит<input type="file" accept="image/*" id="fTalk"></label>
+  </div>
+  <small>Свои PNG можно выбрать кликом. Без них показываются заготовки.</small>
+
+  <label for="mic">Микрофон</label>
+  <select id="mic"><option value="">По умолчанию</option></select>
+  <button id="start">Включить микрофон</button>
+
+  <label>Громкость сейчас</label>
+  <div class="meter"><i id="lvl"></i><b id="thr"></b></div>
+
+  <label for="th">Порог речи</label>
+  <input type="range" id="th" min="1" max="60" value="12">
+  <label for="hold">Задержка закрытия: <span id="holdV"></span> мс</label>
+  <input type="range" id="hold" min="0" max="800" step="10" value="150">
+  <label for="size">Размер: <span id="sizeV"></span>%</label>
+  <input type="range" id="size" min="20" max="100" value="60">
+
+  <div class="row" style="margin-top:10px"><input type="checkbox" id="bounce" checked><label for="bounce">Подпрыгивать, когда говорю</label></div>
+
+  <label for="bg">Фон</label>
+  <select id="bg">
+    <option value="#00b140">Зелёный (хромакей)</option>
+    <option value="#0047ab">Синий (хромакей)</option>
+    <option value="#ff00ff">Розовый (хромакей)</option>
+    <option value="#1b1326">Тёмный</option>
+    <option value="transparent">Прозрачный (Browser Source)</option>
+  </select>
+
+  <button class="alt" id="hide">Скрыть панель (клавиша H)</button>
+  <div id="msg"></div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const faceSvg = open => 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">' +
+    '<circle cx="200" cy="210" r="150" fill="#ffd8b8" stroke="#3a2a4a" stroke-width="8"/>' +
+    '<path d="M70 150 Q200 20 330 150 Q200 90 70 150Z" fill="#7a4bd0" stroke="#3a2a4a" stroke-width="8"/>' +
+    '<circle cx="150" cy="200" r="16" fill="#3a2a4a"/><circle cx="250" cy="200" r="16" fill="#3a2a4a"/>' +
+    (open
+      ? '<ellipse cx="200" cy="285" rx="42" ry="38" fill="#7a1f3a" stroke="#3a2a4a" stroke-width="8"/><ellipse cx="200" cy="302" rx="22" ry="14" fill="#ff8fb1"/>'
+      : '<path d="M155 280 Q200 305 245 280" fill="none" stroke="#3a2a4a" stroke-width="9" stroke-linecap="round"/>') +
+    '</svg>');
+  const DEF = {idle: faceSvg(false), talk: faceSvg(true)};
+
+  const S = {th:12, hold:150, size:60, bounce:true, bg:'#00b140', mic:'', idle:'', talk:''};
+  try { Object.assign(S, JSON.parse(localStorage.getItem('pngtuber') || '{}')); } catch(e){}
+  const save = () => { try { localStorage.setItem('pngtuber', JSON.stringify(S)); } catch(e){ $('msg').textContent = 'Картинки слишком большие, чтобы запомнить их.'; } };
+
+  const ch = $('char');
+  let talking = false, lastLoud = 0;
+
+  function apply(){
+    const idleSrc = S.idle || DEF.idle, talkSrc = S.talk || DEF.talk;
+    $('pvIdle').src = idleSrc; $('pvTalk').src = talkSrc;
+    ch.src = talking ? talkSrc : idleSrc;
+    ch.classList.toggle('talk', talking);
+    ch.classList.toggle('bounce', S.bounce);
+    document.documentElement.style.setProperty('--size', S.size + 'vmin');
+    document.documentElement.style.setProperty('--stage', S.bg);
+    document.body.style.background = S.bg;
+    $('th').value = S.th; $('hold').value = S.hold; $('size').value = S.size;
+    $('holdV').textContent = S.hold; $('sizeV').textContent = S.size;
+    $('bounce').checked = S.bounce; $('bg').value = S.bg;
+    $('thr').style.left = Math.min(100, S.th * 2) + '%';
+  }
+
+  [['th','th'],['hold','hold'],['size','size']].forEach(([id,k]) =>
+    $(id).addEventListener('input', e => { S[k] = +e.target.value; apply(); save(); }));
+  $('bounce').addEventListener('change', e => { S.bounce = e.target.checked; apply(); save(); });
+  $('bg').addEventListener('change', e => { S.bg = e.target.value; apply(); save(); });
+
+  // загрузка картинок (уменьшаем, чтобы влезло в память браузера)
+  function loadImg(input, key){
+    input.addEventListener('change', () => {
+      const f = input.files[0]; if (!f) return;
+      const url = URL.createObjectURL(f), im = new Image();
+      im.onload = () => {
+        const k = Math.min(1, 900 / Math.max(im.width, im.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        S[key] = c.toDataURL('image/png');
+        URL.revokeObjectURL(url); apply(); save();
+      };
+      im.src = url;
+    });
+  }
+  loadImg($('fIdle'), 'idle'); loadImg($('fTalk'), 'talk');
+
+  // микрофон
+  let ctx, analyser, buf, stream;
+  async function listMics(){
+    try {
+      const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+      const sel = $('mic'); sel.innerHTML = '<option value="">По умолчанию</option>';
+      devs.forEach((d,i) => { const o = document.createElement('option'); o.value = d.deviceId; o.textContent = d.label || ('Микрофон ' + (i+1)); sel.appendChild(o); });
+      sel.value = S.mic;
+    } catch(e){}
+  }
+  async function start(){
+    $('msg').textContent = '';
+    try {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      if (ctx) ctx.close();
+      stream = await navigator.mediaDevices.getUserMedia({audio:{
+        deviceId: S.mic ? {exact:S.mic} : undefined,
+        echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      await ctx.resume();
+      analyser = ctx.createAnalyser(); analyser.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      buf = new Uint8Array(analyser.fftSize);
+      $('start').textContent = 'Микрофон включён';
+      listMics();
+    } catch(e){
+      $('msg').textContent = 'Нет доступа к микрофону. Разреши его в браузере и нажми кнопку ещё раз.';
+    }
+  }
+  $('start').addEventListener('click', start);
+  $('mic').addEventListener('change', e => { S.mic = e.target.value; save(); if (stream) start(); });
+
+  function loop(){
+    if (analyser){
+      analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++){ const v = (buf[i] - 128) / 128; sum += v * v; }
+      const level = Math.min(50, Math.sqrt(sum / buf.length) * 220);   // 0..50
+      $('lvl').style.width = Math.min(100, level * 2) + '%';
+      const now = performance.now();
+      if (level > S.th) lastLoud = now;
+      const should = now - lastLoud < S.hold;
+      if (should !== talking){ talking = should; apply(); }
+    }
+    requestAnimationFrame(loop);
+  }
+
+  const panel = $('panel');
+  $('hide').addEventListener('click', () => panel.classList.add('hidden'));
+  addEventListener('keydown', e => { if (e.key === 'h' || e.key === 'H' || e.key === 'р' || e.key === 'Р') panel.classList.toggle('hidden'); });
+
+  apply(); listMics(); loop();
+})();
+</script>
+</body>
+</html>
