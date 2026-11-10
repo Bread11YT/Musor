@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Оплот — город против орков</title>
+<style>
+:root{--bg:#e9e4d6;--fg:#241d12;--card:#f6f2e7;--bd:#bdb398;--gold:#8a6414;--moss:#3f6b2c;--bad:#a3261c;--g1:#9fc47c;--g2:#94ba72;--bar:#2d5a1e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#171a14;--fg:#e7e1cf;--card:#20251c;--bd:#3b4333;--gold:#e0b04a;--moss:#8fbf6a;--bad:#ef7d6f;--g1:#4d6e38;--g2:#476633;--bar:#8fbf6a}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#171a14;--fg:#e7e1cf;--card:#20251c;--bd:#3b4333;--gold:#e0b04a;--moss:#8fbf6a;--bad:#ef7d6f;--g1:#4d6e38;--g2:#476633;--bar:#8fbf6a}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 Georgia,"Times New Roman",serif}
+main{max-width:980px;margin:0 auto;padding:12px}
+h1{font-size:22px;margin:4px 0 8px;letter-spacing:.3px}
+#hud{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 10px;background:var(--card);border:1px solid var(--bd);border-radius:6px;margin-bottom:8px}
+#hud b{color:var(--gold)}
+canvas{display:block;width:100%;height:auto;border:2px solid var(--bd);border-radius:4px;touch-action:manipulation;background:var(--g1)}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--bd);border-radius:5px;padding:7px 10px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--gold)}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+button:disabled{opacity:.5;cursor:default}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:720px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:10px}
+.panel h2{font-size:16px;margin:0 0 6px}
+.panel button{display:block;width:100%;text-align:left;margin-bottom:6px}
+#log{font-size:13px;min-height:84px}
+#log div{padding:1px 0}
+small{opacity:.8}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+.hint{display:none;font-size:13px;opacity:.85;margin-top:6px}
+@media (pointer:coarse){.hint{display:block}}
+@media (max-width:720px){
+main{padding:8px 8px 104px}
+h1{font-size:18px;margin:2px 0 6px}
+#hud{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;gap:2px 10px;padding:6px 8px;font-size:13px}
+#tools{position:fixed;left:0;right:0;bottom:0;z-index:6;margin:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));flex-wrap:nowrap;overflow-x:auto;background:var(--card);border-top:1px solid var(--bd)}
+#tools button{flex:0 0 auto;min-width:70px;min-height:52px;text-align:center;padding:6px 8px}
+#tools small,#tools br{display:none}
+.panel button{min-height:46px}
+#tools button.on{background:var(--bg);border-width:2px}
+#tools{gap:8px}
+#log{min-height:0}
+}
+</style></head><body><main>
+<h1>Оплот</h1>
+<div id="hud"></div>
+<canvas id="cv" width="600" height="360" aria-label="Игровое поле"></canvas>
+<div class="hint" id="hint">Коснитесь клетки — она подсветится. Коснитесь ещё раз — здание построится.</div>
+<div class="row" id="tools"></div>
+<div class="grid">
+  <div class="panel"><h2>Армия</h2>
+    <button id="hire"></button><button id="gear"></button><button id="sortie"></button>
+    <button id="early">Позвать орков сейчас</button>
+  </div>
+  <div class="panel"><h2>Рейды на города других игроков</h2><div id="bots"></div><small>Пока вместо игроков — боты. Войска уходят на 12 с, дом остаётся без их защиты.</small></div>
+</div>
+<div class="panel" style="margin-top:10px"><h2>Летопись</h2><small>Орки нападают волнами примерно каждые 45 секунд.</small><div id="log"></div><button id="restart" style="width:auto;display:none;margin-top:6px">Начать заново</button></div>
+</main>
+<script>
+const W=15,H=9,T=40,KX=13,KY=4;
+const B={house:{n:'Дом',e:'🏠',c:30,hp:40,d:'+3 крестьянина'},farm:{n:'Поле',e:'🌾',c:20,hp:25,d:'2 золота/с с работника'},tower:{n:'Башня',e:'🗼',c:50,hp:60,d:'стреляет'},wall:{n:'Стена',e:'🧱',c:10,hp:90,d:'держит орков'},barracks:{n:'Казарма',e:'⛺',c:70,hp:60,d:'+5 мест для воинов'}};
+const BOTS=[{n:'Деревня Гримвуд',d:15,l:80},{n:'Форт Рейвенхолл',d:45,l:200},{n:'Цитадель Барона',d:100,l:450}];
+const cv=document.getElementById('cv'),cx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+let G,tool='house',logs=[],sel=null;const touch=matchMedia('(pointer:coarse)').matches;
+function log(s){logs.unshift(s);logs=logs.slice(0,5);$('log').innerHTML=logs.map(x=>'<div>'+x+'</div>').join('')}
+function init(){
+  G={gold:100,hp:200,wave:0,grid:Array.from({length:H},()=>Array(W).fill(null)),orcs:[],fx:[],queue:0,sp:0,timer:45,started:false,fight:false,soldiers:0,gear:0,away:null,cap:[],over:false,acc:0,kcd:0};
+  logs=[];log('Стройте поля, дома и башни. Таймер волн запустится после первой постройки.');$('restart').style.display='none';
+}
+function cnt(t){let n=0;for(const r of G.grid)for(const b of r)if(b&&b.t===t)n++;return n}
+const pop=()=>cnt('house')*3, working=()=>Math.min(cnt('farm'),pop()), income=()=>working()*2+G.cap.length*4;
+const cap=()=>cnt('barracks')*5, away=()=>G.away?G.away.n:0;
+// tools
+const tb=$('tools');
+Object.entries(B).forEach(([k,v])=>{const b=document.createElement('button');b.dataset.k=k;b.innerHTML=v.e+' '+v.n+' — '+v.c+'<br><small>'+v.d+'</small>';b.onclick=()=>{tool=k;sync()};tb.appendChild(b)});
+{const b=document.createElement('button');b.dataset.k='del';b.innerHTML='🔨 Снести<br><small>вернёт половину цены</small>';b.onclick=()=>{tool='del';sync()};tb.appendChild(b)}
+function sync(){[...tb.children].forEach(b=>b.classList.toggle('on',b.dataset.k===tool))}
+cv.addEventListener('click',e=>{
+  if(G.over)return;const r=cv.getBoundingClientRect();
+  const x=Math.floor((e.clientX-r.left)/r.width*W),y=Math.floor((e.clientY-r.top)/r.height*H);
+  if(x<0||y<0||x>=W||y>=H||(x===KX&&y===KY))return;
+  if(touch){if(!sel||sel.x!==x||sel.y!==y){sel={x,y};return}sel=null}
+  const c=G.grid[y][x];
+  if(tool==='del'){if(c){G.gold+=Math.floor(B[c.t].c/2);G.grid[y][x]=null}return}
+  if(c)return;
+  const d=B[tool];
+  if(G.gold<d.c){log('Не хватает золота на '+d.n.toLowerCase()+'.');return}
+  G.gold-=d.c;G.started=true;G.grid[y][x]={t:tool,hp:d.hp,mx:d.hp,cd:0};
+});
+// army
+$('hire').onclick=()=>{if(G.gold>=25&&G.soldiers+away()<cap()){G.gold-=25;G.soldiers++}};
+$('gear').onclick=()=>{const c=40*(G.gear+1);if(G.gold>=c){G.gold-=c;G.gear++;log('Кузнецы выковали снаряжение. Уровень: '+G.gear+'.')}};
+$('early').onclick=()=>{if(!G.fight&&!G.over)startWave()};
+$('restart').onclick=()=>init();
+const power=n=>n*5*(1+.25*G.gear)*(.8+Math.random()*.5);
+function send(kind,i){
+  if(G.away||G.soldiers<(kind==='s'?2:1)||G.over)return;
+  const n=G.soldiers;G.soldiers=0;let win,loot,loss;
+  if(kind==='s'){const p=power(n);win=p>25;loot=win?30+Math.floor(Math.random()*60):0;loss=Math.floor(Math.random()*(n*.2+1));if(!win)loss=Math.ceil(n*.4)}
+  else{const bt=BOTS[i];win=power(n)>bt.d;loot=win?bt.l:0;loss=Math.ceil(n*(win?.2+Math.random()*.15:.6+Math.random()*.2))}
+  loss=Math.min(loss,n);G.away={n,t:kind==='s'?8:12,win,loot,loss,kind,i};
+  log(kind==='s'?'Отряд ушёл на вылазку.':'Армия выступила на '+BOTS[i].n+'.');
+}
+$('sortie').onclick=()=>send('s');
+const bd=$('bots');
+BOTS.forEach((b,i)=>{const e=document.createElement('button');e.onclick=()=>send('r',i);bd.appendChild(e)});
+function back(){
+  const a=G.away;G.away=null;G.soldiers+=a.n-a.loss;G.gold+=a.loot;
+  if(a.kind==='s')log(a.win?'Вылазка удалась: +'+a.loot+' золота, потери '+a.loss+'.':'Вылазка провалилась, потери '+a.loss+'.');
+  else if(a.win){G.cap.push(a.i);log('Захвачен город «'+BOTS[a.i].n+'»! +'+a.loot+' золота и дань 4/с. Потери: '+a.loss+'.')}
+  else log('Штурм «'+BOTS[a.i].n+'» отбит. Потери: '+a.loss+'.');
+}
+// waves
+function startWave(){G.wave++;G.fight=true;G.queue=3+G.wave*2;G.sp=0;log('Волна '+G.wave+': идут орки ('+G.queue+')!')}
+function spawn(){G.queue--;G.orcs.push({x:-.5,y:Math.floor(Math.random()*H)+.5,hp:18+G.wave*6,mx:18+G.wave*6,sp:.7+Math.min(G.wave,8)*.04,cd:0})}
+function nearest(x,y,r){let b=null,bd=r;for(const o of G.orcs){const d=Math.hypot(o.x-x,o.y-y);if(d<bd){bd=d;b=o}}return b}
+function shoot(x,y,o,dm){o.hp-=dm;G.fx.push({x1:x,y1:y,x2:o.x,y2:o.y,t:.15})}
+function update(dt){
+  if(G.over)return;
+  G.acc+=dt;while(G.acc>=1){G.acc-=1;G.gold+=income()}
+  if(!G.fight){if(G.started){G.timer-=dt;if(G.timer<=0)startWave()}}
+  else{
+    G.sp-=dt;if(G.queue>0&&G.sp<=0){spawn();G.sp=1.1}
+    if(G.queue===0&&!G.orcs.length){G.fight=false;G.timer=45;const r=40+10*G.wave;G.gold+=r;log('Волна '+G.wave+' отбита! Награда: '+r+' золота.')}
+  }
+  if(G.away){G.away.t-=dt;if(G.away.t<=0)back()}
+  const kx=KX+.5,ky=KY+.5;
+  for(const o of G.orcs){
+    const dx=kx-o.x,dy=ky-o.y,d=Math.hypot(dx,dy);o.cd-=dt;
+    if(d<1.3){if(o.cd<=0){G.hp-=5+G.wave;o.cd=.9}continue}
+    const ux=dx/d,uy=dy/d,lx=Math.floor(o.x+ux*.5),ly=Math.floor(o.y+uy*.5);
+    const b=(lx>=0&&ly>=0&&lx<W&&ly<H)?G.grid[ly][lx]:null;
+    if(b){if(o.cd<=0){b.hp-=6+G.wave;o.cd=.8;if(b.hp<=0)G.grid[ly][lx]=null}}
+    else{o.x+=ux*o.sp*dt;o.y+=uy*o.sp*dt}
+  }
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const b=G.grid[y][x];
+    if(b&&b.t==='tower'){b.cd-=dt;if(b.cd<=0){const o=nearest(x+.5,y+.5,3.5);if(o){shoot(x+.5,y+.5,o,8);b.cd=.8}}}}
+  G.kcd-=dt;if(G.kcd<=0){const o=nearest(kx,ky,3.2);if(o){shoot(kx,ky,o,3+G.soldiers);G.kcd=.8}}
+  const before=G.orcs.length;G.orcs=G.orcs.filter(o=>o.hp>0);G.gold+=(before-G.orcs.length)*3;
+  G.fx.forEach(f=>f.t-=dt);G.fx=G.fx.filter(f=>f.t>0);
+  if(G.hp<=0){G.hp=0;G.over=true;log('Ратуша пала на волне '+G.wave+'. Королевство разорено.');$('restart').style.display='inline-block'}
+}
+function bar(x,y,w,p,c){cx.fillStyle='rgba(0,0,0,.45)';cx.fillRect(x,y,w,4);cx.fillStyle=c;cx.fillRect(x,y,w*Math.max(0,p),4)}
+function draw(){const cs=getComputedStyle(document.documentElement),COL={a:cs.getPropertyValue('--g1').trim(),b:cs.getPropertyValue('--g2').trim()};
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){cx.fillStyle=(x+y)%2?COL.a:COL.b;cx.fillRect(x*T,y*T,T,T)}
+  cx.fillStyle='rgba(60,20,10,.18)';cx.fillRect(0,0,T*.6,H*T);
+  cx.textAlign='center';cx.textBaseline='middle';
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const b=G.grid[y][x];if(!b)continue;
+    cx.fillStyle=({house:'#c9a77c',farm:'#d8c45a',tower:'#9aa1a8',wall:'#7b7b7b',barracks:'#b5744a'})[b.t];cx.fillRect(x*T+2,y*T+2,T-4,T-4);cx.strokeStyle='rgba(0,0,0,.5)';cx.lineWidth=1;cx.strokeRect(x*T+2.5,y*T+2.5,T-5,T-5);
+    cx.font='26px serif';cx.fillText(B[b.t].e,x*T+T/2,y*T+T/2+1);if(b.hp<b.mx)bar(x*T+4,y*T+T-7,T-8,b.hp/b.mx,'#d9a441')}
+  cx.font='36px serif';cx.fillText('🏰',(KX+.5)*T,(KY+.5)*T);bar(KX*T,KY*T+T-4,T,G.hp/200,'#4caf50');
+  cx.font='24px serif';
+  for(const o of G.orcs){cx.fillText('👹',o.x*T,o.y*T);bar(o.x*T-12,o.y*T+13,24,o.hp/o.mx,'#c0392b')}
+  cx.lineWidth=2;cx.strokeStyle='#fff';
+  for(const f of G.fx){cx.beginPath();cx.moveTo(f.x1*T,f.y1*T);cx.lineTo(f.x2*T,f.y2*T);cx.stroke()}
+  if(sel&&touch&&!G.over){cx.strokeStyle='#ffd34d';cx.lineWidth=3;cx.strokeRect(sel.x*T+2,sel.y*T+2,T-4,T-4);if(tool!=='del'&&!G.grid[sel.y][sel.x]){cx.globalAlpha=.55;cx.font='26px serif';cx.fillText(B[tool].e,sel.x*T+T/2,sel.y*T+T/2+1);cx.globalAlpha=1}}
+  if(G.over){cx.fillStyle='rgba(0,0,0,.6)';cx.fillRect(0,0,W*T,H*T);cx.fillStyle='#fff';cx.font='bold 30px Georgia';cx.fillText('Королевство пало',W*T/2,H*T/2)}
+}
+let uiT=0;function ui(){const n=performance.now();if(n-uiT<120)return;uiT=n;[...tb.children].forEach(b=>{const d=B[b.dataset.k];b.style.opacity=d&&G.gold<d.c?.5:1});
+  $('hud').innerHTML='<span>💰 <b>'+Math.floor(G.gold)+'</b> (+'+income()+'/с)</span><span>👨‍🌾 <b>'+working()+'/'+pop()+'</b></span><span>⚔️ <b>'+G.soldiers+'</b>'+(G.away?' (+'+G.away.n+' в походе)':'')+' из '+cap()+'</span><span>🛡️ снаряжение <b>'+G.gear+'</b></span><span>🌊 волна <b>'+G.wave+'</b></span><span>🏰 <b>'+Math.ceil(G.hp)+'</b>/200</span><span>'+(G.fight?'идёт бой':G.started?'орки через <b>'+Math.ceil(G.timer)+'</b> с':'таймер стартует с первой постройки')+'</span>';
+  $('hire').textContent='Нанять воина — 25 золота';$('hire').disabled=G.gold<25||G.soldiers+away()>=cap();
+  const gc=40*(G.gear+1);$('gear').textContent='Купить снаряжение (ур. '+(G.gear+1)+') — '+gc;$('gear').disabled=G.gold<gc;
+  $('sortie').textContent='Вылазка в лес (от 2 воинов)';$('sortie').disabled=!!G.away||G.soldiers<2;
+  $('early').disabled=G.fight||G.over;
+  [...bd.children].forEach((e,i)=>{const b=BOTS[i],c=G.cap.includes(i);e.innerHTML=(c?'✅ ':'🏴 ')+b.n+'<br><small>'+(c?'захвачен, дань 4/с':'защита ~'+b.d+' · добыча '+b.l)+'</small>';e.disabled=c||!!G.away||G.soldiers<1})
+}
+let last=performance.now();
+function tick(){const t=performance.now();let dt=Math.min(2,(t-last)/1000);last=t;while(dt>0){const s=Math.min(.1,dt);update(s);dt-=s}}
+function loop(){tick();draw();ui();requestAnimationFrame(loop)}
+init();sync();setInterval(tick,250);requestAnimationFrame(loop);
+</script></body></html>
