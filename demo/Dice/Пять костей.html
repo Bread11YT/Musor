@@ -1,0 +1,520 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Пять костей</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;700;900&display=swap">
+<style>
+/* Layout: one centred column. Status card with the stage target, a lacquer-red felt table with five ivory dice, relic slots, combo ledger. Shop and end screens replace the table. */
+:root{
+  --bg:#ece5e6; --panel:#f8f3f3; --panel-2:#efe6e7; --ink:#2a171c; --ink-2:#6c5258; --line:#d8c9cc;
+  --felt:#651a2b; --felt-hi:#85283d; --felt-rim:#c8a24c; --on-felt:#f8ecee; --on-felt-2:#e0b9c1;
+  --die:#f8f1e1; --die-edge:#c9bb98; --pip:#2a171c;
+  --brass:#d9a63f; --brass-ink:#2c1c06; --gold:#8f6310; --good:#2c7a4b; --bad:#b0312e;
+  --shadow:0 1px 0 rgba(0,0,0,.04),0 6px 18px rgba(60,20,30,.08);
+  --font-display:'Unbounded',ui-sans-serif,system-ui,sans-serif;
+  --font-body:'Onest',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#150a0e; --panel:#231218; --panel-2:#2c171e; --ink:#f4e8ea; --ink-2:#b99ca3; --line:#3a222a;
+    --felt:#4e1121; --felt-hi:#6a1b30; --felt-rim:#a98334; --brass:#e0ac45;
+    --gold:#e6b655; --good:#58b77d; --bad:#e2625d; --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#150a0e; --panel:#231218; --panel-2:#2c171e; --ink:#f4e8ea; --ink-2:#b99ca3; --line:#3a222a;
+  --felt:#4e1121; --felt-hi:#6a1b30; --felt-rim:#a98334; --brass:#e0ac45;
+  --gold:#e6b655; --good:#58b77d; --bad:#e2625d; --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.45;
+  padding-block:12px 32px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+button{font:inherit;color:inherit}
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{margin:0;font-family:var(--font-display);font-weight:900;font-size:16px;letter-spacing:.02em}
+.top-r{display:flex;align-items:center;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-weight:600;font-variant-numeric:tabular-nums}
+.coin{width:10px;height:10px;border-radius:50%;background:var(--brass);box-shadow:inset 0 0 0 2px var(--felt-rim)}
+.iconbtn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:700}
+.iconbtn:hover{background:var(--panel-2)}
+:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.help p{margin:0 0 8px;color:var(--ink-2)}
+.help p:last-of-type{margin-bottom:12px}
+.help b{color:var(--ink)}
+
+.stage{display:grid;gap:10px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.stage-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.bosstag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--bad);border:1px solid var(--bad);border-radius:999px;padding:2px 9px}
+.score-line{display:flex;align-items:baseline;gap:8px;font-family:var(--font-display)}
+.score-num{font-size:32px;font-weight:900;font-variant-numeric:tabular-nums}
+.score-target{font-size:15px;font-weight:500;color:var(--ink-2)}
+.bar{height:10px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brass);border-radius:999px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.bar.done i{background:var(--good)}
+.meta{display:flex;gap:18px;color:var(--ink-2);font-size:13px}
+.meta b{color:var(--ink);font-family:var(--font-display);font-size:14px;margin-left:4px}
+.bossdesc{margin:0;font-size:13px;color:var(--ink-2)}
+
+.felt{
+  background:radial-gradient(120% 90% at 50% 0%,var(--felt-hi),var(--felt) 70%);
+  color:var(--on-felt);border-radius:18px;padding:16px 12px 14px;display:grid;gap:14px;
+  box-shadow:inset 0 0 0 2px var(--felt-rim),inset 0 0 0 6px var(--felt);
+}
+.dice{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(6px,2vw,12px);padding:10px 4px 0}
+.die-wrap{display:grid;justify-items:center;gap:7px;min-width:0}
+.die{
+  width:100%;max-width:84px;aspect-ratio:1;border:0;cursor:pointer;background:var(--die);border-radius:18%;
+  display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:14%;
+  box-shadow:0 3px 0 var(--die-edge),0 9px 14px rgba(0,0,0,.35);
+  transition:transform .14s ease,opacity .2s ease,outline-color .14s;
+  outline:3px solid transparent;outline-offset:3px;
+}
+.die[disabled]{cursor:default}
+.die .pip{width:78%;height:78%;place-self:center;border-radius:50%;background:var(--pip);visibility:hidden}
+.die .pip.on{visibility:visible}
+.die.held{transform:translateY(-8px);outline-color:var(--brass)}
+.die.hit{outline-color:var(--brass);transform:translateY(-6px)}
+.die.dim{opacity:.42}
+.die.rolling{animation:tumble .16s linear infinite}
+@keyframes tumble{0%{transform:rotate(-9deg) translateY(-2px)}50%{transform:rotate(9deg) translateY(3px)}100%{transform:rotate(-9deg) translateY(-2px)}}
+.tag{height:14px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
+
+.read{display:grid;gap:3px;text-align:center;min-height:62px;align-content:center}
+.read .name{font-family:var(--font-display);font-weight:700;font-size:15px}
+.read .calc{font-size:14px;color:var(--on-felt-2);font-variant-numeric:tabular-nums}
+.read .calc b{color:var(--on-felt);font-family:var(--font-display)}
+.hint{font-size:12px;color:var(--on-felt-2);text-align:center;margin:0}
+
+.bd{display:grid;gap:5px;font-size:13px;background:rgba(0,0,0,.24);border-radius:12px;padding:10px 12px}
+.bd .row{display:flex;justify-content:space-between;gap:12px}
+.bd .row span:last-child{text-align:right;font-variant-numeric:tabular-nums;color:var(--on-felt-2)}
+.bd .total{border-top:1px solid rgba(255,255,255,.18);padding-top:7px;margin-top:2px;font-family:var(--font-display);font-size:15px;font-weight:700}
+.bd .total span:last-child{color:var(--brass)}
+
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions.one{grid-template-columns:1fr}
+.btn{font-family:var(--font-display);font-weight:700;font-size:13px;letter-spacing:.02em;padding:14px 10px;border-radius:12px;border:0;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-roll{background:transparent;color:var(--on-felt);border:1.5px solid var(--on-felt-2)}
+.btn-roll:hover:not(:disabled){background:rgba(255,255,255,.1)}
+.btn-go{background:var(--brass);color:var(--brass-ink)}
+.btn-go:hover:not(:disabled){filter:brightness(1.06)}
+.btn-plain{background:var(--ink);color:var(--bg)}
+.btn-plain:hover:not(:disabled){filter:brightness(1.15)}
+.btn-line{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn-line:hover:not(:disabled){background:var(--panel-2)}
+
+.relics{display:grid;gap:8px}
+.slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.slot{aspect-ratio:1.25;border-radius:12px;display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:15px;border:1.5px dashed var(--line);background:transparent;color:var(--ink-2)}
+button.slot{border:1px solid var(--line);border-style:solid;background:var(--panel);color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
+button.slot.sel{border-color:var(--brass);box-shadow:0 0 0 2px var(--brass)}
+.rdetail{font-size:13px;color:var(--ink-2);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rdetail b{color:var(--ink)}
+.rdetail .txt{min-width:0;flex:1 1 200px}
+.sell{padding:8px 12px;font-size:12px;border-radius:10px}
+
+.ledger summary{cursor:pointer;font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.tbl{overflow-x:auto;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);text-align:right;font-weight:700;padding:4px 8px}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 8px;text-align:right;border-top:1px solid var(--line)}
+tr.cur td{background:var(--panel-2);font-weight:700}
+tr.cur td:first-child{color:var(--gold)}
+
+.shop{display:grid;gap:14px}
+.shop h2,.end h2{margin:0;font-family:var(--font-display);font-size:18px;font-weight:900}
+.reward{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.reward .big{font-family:var(--font-display);font-weight:900;font-size:22px;color:var(--gold)}
+.reward small{color:var(--ink-2);font-size:12px}
+.offers{display:grid;gap:8px}
+.offer{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.offer .mk{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;background:var(--panel);border:1px solid var(--line);font-family:var(--font-display);font-weight:700;font-size:13px}
+.offer .txt{display:grid;gap:1px;min-width:0}
+.offer .txt b{font-size:14px}
+.offer .txt span{font-size:12px;color:var(--ink-2)}
+.buy{padding:10px 12px;border-radius:10px;border:0;background:var(--brass);color:var(--brass-ink);font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
+.buy:disabled{opacity:.4;cursor:default}
+.note{margin:0;font-size:12px;color:var(--ink-2)}
+.next{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+.next b{color:var(--ink)}
+
+.end{display:grid;gap:12px;text-align:center;padding:22px 16px}
+.end p{margin:0;color:var(--ink-2)}
+.end .big{font-family:var(--font-display);font-weight:900;font-size:34px;color:var(--ink)}
+.end.win .big{color:var(--gold)}
+
+@media (prefers-reduced-motion: reduce){
+  .die,.bar i{transition:none}
+  .die.rolling{animation:none}
+}
+@media (max-width:380px){
+  .offer{grid-template-columns:40px minmax(0,1fr)}
+  .offer .buy{grid-column:1/-1}
+}
+</style>
+
+<div class="app" id="app"></div>
+
+<script>
+/*CORE_START*/
+const HANDS={
+  high:{name:'Старшая кость',chips:5,mult:1,upC:5,upM:1},
+  pair:{name:'Пара',chips:10,mult:2,upC:8,upM:1},
+  two:{name:'Две пары',chips:20,mult:2,upC:10,upM:1},
+  trips:{name:'Тройка',chips:30,mult:3,upC:15,upM:1},
+  small:{name:'Малый стрит',chips:30,mult:3,upC:15,upM:1},
+  full:{name:'Фулл-хаус',chips:40,mult:4,upC:20,upM:1},
+  big:{name:'Большой стрит',chips:45,mult:4,upC:20,upM:1},
+  kare:{name:'Каре',chips:60,mult:5,upC:25,upM:1},
+  poker:{name:'Покер',chips:100,mult:7,upC:30,upM:2}
+};
+const ORDER=['poker','kare','big','full','small','trips','two','pair','high'];
+const BOSSES={
+  tight:{name:'Скупой крупье',desc:'На один переброс меньше в каждой руке.'},
+  lefty:{name:'Левша',desc:'На одну руку меньше на этапе.'},
+  halfpairs:{name:'Хозяин костей',desc:'Пара и две пары приносят вдвое меньше очков.'}
+};
+const STAGES=[
+  {target:260},{target:450},{target:650,boss:'tight'},{target:1000},
+  {target:1500},{target:2200,boss:'lefty'},{target:3300},{target:5000,boss:'halfpairs'}
+];
+const MAX_RELICS=5;
+const fmt=n=>Number.isInteger(n)?String(n):n.toFixed(1);
+const RELICS=[
+  {id:'lead',name:'Свинцовый грузик',mark:'+Б',price:7,desc:'+1 переброс в каждой руке.',rerolls:1},
+  {id:'spare',name:'Запасная рука',mark:'+Р',price:9,desc:'+1 рука на каждом этапе.',hands:1},
+  {id:'hex',name:'Шестигранник',mark:'6',price:5,desc:'Каждая шестёрка среди пяти костей: +8 фишек.',
+    apply(c){const n=c.vals.filter(x=>x===6).length;if(n){c.chips+=8*n;c.log.push(['Шестигранник',n+'×6: +'+8*n+' фишек']);}}},
+  {id:'odd',name:'Нечётная печать',mark:'Н',price:6,desc:'Каждая нечётная кость: +1 к множителю.',
+    apply(c){const n=c.vals.filter(x=>x%2===1).length;if(n){c.mult+=n;c.log.push(['Нечётная печать','+'+n+' множитель']);}}},
+  {id:'even',name:'Чётная печать',mark:'Ч',price:5,desc:'Каждая чётная кость: +10 фишек.',
+    apply(c){const n=c.vals.filter(x=>x%2===0).length;if(n){c.chips+=10*n;c.log.push(['Чётная печать','+'+10*n+' фишек']);}}},
+  {id:'pairs',name:'Карманная пара',mark:'П',price:5,desc:'Пара, две пары и фулл-хаус: +3 к множителю.',
+    apply(c){if(['pair','two','full'].includes(c.key)){c.mult+=3;c.log.push(['Карманная пара','+3 множитель']);}}},
+  {id:'ruler',name:'Линейка',mark:'123',price:6,desc:'Стриты: +40 фишек и +2 к множителю.',
+    apply(c){if(c.key==='small'||c.key==='big'){c.chips+=40;c.mult+=2;c.log.push(['Линейка','+40 фишек, +2 множитель']);}}},
+  {id:'piggy',name:'Копилка',mark:'$',price:5,desc:'+1 золото за каждую засчитанную руку.',
+    apply(c){c.gold+=1;c.log.push(['Копилка','+1 золото']);}},
+  {id:'opener',name:'Первый бросок',mark:'1й',price:5,desc:'Первая рука этапа: +5 к множителю.',
+    apply(c){if(c.first){c.mult+=5;c.log.push(['Первый бросок','+5 множитель']);}}},
+  {id:'last',name:'Последний шанс',mark:'!',price:5,desc:'Последняя рука этапа: +6 к множителю.',
+    apply(c){if(c.last){c.mult+=6;c.log.push(['Последний шанс','+6 множитель']);}}},
+  {id:'coin',name:'Монета удачи',mark:'1',price:4,desc:'Каждая единица среди костей: +2 золота.',
+    apply(c){const n=c.vals.filter(x=>x===1).length;if(n){c.gold+=2*n;c.log.push(['Монета удачи','+'+2*n+' золота']);}}},
+  {id:'quads',name:'Магнит каре',mark:'4',price:5,desc:'Каре и покер: +5 к множителю.',
+    apply(c){if(c.key==='kare'||c.key==='poker'){c.mult+=5;c.log.push(['Магнит каре','+5 множитель']);}}},
+  {id:'heavy',name:'Тяжёлая рука',mark:'+25',price:5,desc:'Любая комбинация: +25 фишек.',
+    apply(c){c.chips+=25;c.log.push(['Тяжёлая рука','+25 фишек']);}},
+  {id:'scales',name:'Весы',mark:'Σ',price:6,desc:'Сумма всех пяти костей 20 и больше: +4 к множителю.',
+    apply(c){if(c.vals.reduce((a,b)=>a+b,0)>=20){c.mult+=4;c.log.push(['Весы','+4 множитель']);}}},
+  {id:'double',name:'Двойная ставка',mark:'×1.5',price:10,late:true,desc:'Итоговый множитель ×1.5.',
+    apply(c){c.mult=c.mult*1.5;c.log.push(['Двойная ставка','множитель ×1.5']);}}
+];
+const relicById=id=>RELICS.find(r=>r.id===id);
+const rnd=()=>1+Math.floor(Math.random()*6);
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function evalHand(v){
+  const cnt=[0,0,0,0,0,0,0];v.forEach(x=>cnt[x]++);
+  const idxOf=val=>v.map((x,i)=>x===val?i:-1).filter(i=>i>=0);
+  const groups=[];for(let n=1;n<=6;n++)if(cnt[n])groups.push({n,c:cnt[n]});
+  const maxc=Math.max(...groups.map(g=>g.c));
+  if(maxc===5)return{key:'poker',idx:[0,1,2,3,4]};
+  if(maxc===4){const g=groups.find(g=>g.c===4);return{key:'kare',idx:idxOf(g.n)};}
+  const d=groups.map(g=>g.n);
+  if(d.length===5&&d[4]-d[0]===4)return{key:'big',idx:[0,1,2,3,4]};
+  if(maxc===3&&groups.length===2)return{key:'full',idx:[0,1,2,3,4]};
+  for(const s of [[1,2,3,4],[2,3,4,5],[3,4,5,6]]){
+    if(s.every(n=>cnt[n]))return{key:'small',idx:s.map(n=>idxOf(n)[0])};
+  }
+  if(maxc===3){const g=groups.find(g=>g.c===3);return{key:'trips',idx:idxOf(g.n)};}
+  const pairs=groups.filter(g=>g.c===2);
+  if(pairs.length===2)return{key:'two',idx:[...idxOf(pairs[0].n),...idxOf(pairs[1].n)]};
+  if(pairs.length===1)return{key:'pair',idx:idxOf(pairs[0].n)};
+  return{key:'high',idx:[v.indexOf(Math.max(...v))]};
+}
+function relicList(S){return S.relics.map(relicById);}
+function bossOf(S){const b=STAGES[S.stage].boss;return b?Object.assign({id:b},BOSSES[b]):null;}
+function maxRerolls(S){let n=2;relicList(S).forEach(r=>n+=r.rerolls||0);if(bossOf(S)&&bossOf(S).id==='tight')n-=1;return Math.max(0,n);}
+function maxHands(S){let n=4;relicList(S).forEach(r=>n+=r.hands||0);if(bossOf(S)&&bossOf(S).id==='lefty')n-=1;return n;}
+
+function scoreHand(vals,S){
+  const h=evalHand(vals),def=HANDS[h.key],lv=S.levels[h.key];
+  const sc=h.idx.map(i=>vals[i]),sum=sc.reduce((a,b)=>a+b,0);
+  const c={key:h.key,vals,chips:def.chips+(lv-1)*def.upC,mult:def.mult+(lv-1)*def.upM,gold:0,log:[],
+           first:S.handsPlayed===0,last:S.handsLeft===1};
+  c.log.push([def.name+' · ур. '+lv,fmt(c.chips)+' фишек × '+fmt(c.mult)]);
+  c.chips+=sum;c.log.push(['Кости комбинации ('+sc.join('+')+')','+'+sum+' фишек']);
+  const rl=relicList(S).slice().sort((a,b)=>(a.late?1:0)-(b.late?1:0));
+  rl.forEach(r=>r.apply&&r.apply(c));
+  let total=Math.floor(c.chips*c.mult);
+  const b=bossOf(S);
+  if(b&&b.id==='halfpairs'&&(h.key==='pair'||h.key==='two')){total=Math.floor(total/2);c.log.push([b.name,'очки ÷ 2']);}
+  return{key:h.key,idx:h.idx,name:def.name,level:lv,chips:c.chips,mult:c.mult,total,gold:c.gold,log:c.log};
+}
+
+function newRun(){
+  const levels={};ORDER.forEach(k=>levels[k]=1);
+  const S={stage:0,gold:0,score:0,shown:0,levels,relics:[],dice:[1,1,1,1,1],held:[false,false,false,false,false],
+    handsLeft:0,handsPlayed:0,rerollsLeft:0,phase:'play',last:null,shop:null,reward:null,cleared:0,busy:false,anim:null,
+    ui:{help:false,ledger:true,sel:null}};
+  startStage(S);return S;
+}
+function startStage(S){S.score=0;S.shown=0;S.handsLeft=maxHands(S);S.handsPlayed=0;S.last=null;newHand(S);}
+function newHand(S){S.rerollsLeft=maxRerolls(S);S.held=[false,false,false,false,false];S.dice=[0,0,0,0,0].map(rnd);S.phase='play';S.last=null;}
+function toggleHold(S,i){if(S.phase==='play')S.held[i]=!S.held[i];}
+function rerollDice(S){
+  if(S.phase!=='play'||S.rerollsLeft<=0)return[];
+  const idx=[];S.dice.forEach((_,i)=>{if(!S.held[i])idx.push(i);});
+  if(!idx.length)return[];
+  idx.forEach(i=>S.dice[i]=rnd());S.rerollsLeft--;return idx;
+}
+function doScore(S){
+  if(S.phase!=='play')return;
+  const r=scoreHand(S.dice,S);
+  S.score+=r.total;S.gold+=r.gold;S.handsLeft--;S.handsPlayed++;S.last=r;S.phase='scored';
+}
+function relicOfferPool(S){return RELICS.filter(r=>!S.relics.includes(r.id));}
+function upPrice(S,k){return 3+2*S.levels[k];}
+function makeShop(S){
+  const rel=shuffle(relicOfferPool(S)).slice(0,3).map(r=>r.id);
+  const ups=shuffle(ORDER).slice(0,2);
+  S.shop={relics:rel,ups,rerolls:0};
+}
+function advance(S){
+  if(S.phase!=='scored')return;
+  if(S.score>=STAGES[S.stage].target){
+    S.cleared=S.stage+1;
+    if(S.stage===STAGES.length-1){S.phase='win';return;}
+    const base=4,boss=STAGES[S.stage].boss?2:0,hands=S.handsLeft,interest=Math.min(3,Math.floor(S.gold/5));
+    S.reward={base,boss,hands,interest,total:base+boss+hands+interest};
+    S.gold+=S.reward.total;makeShop(S);S.phase='shop';return;
+  }
+  if(S.handsLeft<=0){S.phase='over';return;}
+  newHand(S);
+}
+function buyRelic(S,id){
+  const r=relicById(id);
+  if(!r||!S.shop||!S.shop.relics.includes(id)||S.gold<r.price||S.relics.length>=MAX_RELICS)return false;
+  S.gold-=r.price;S.relics.push(id);S.shop.relics=S.shop.relics.filter(x=>x!==id);return true;
+}
+function buyUp(S,k){
+  if(!S.shop||!S.shop.ups.includes(k))return false;
+  const p=upPrice(S,k);if(S.gold<p)return false;
+  S.gold-=p;S.levels[k]++;S.shop.ups=S.shop.ups.filter(x=>x!==k);return true;
+}
+function shopRefresh(S){
+  const cost=2+S.shop.rerolls;if(S.gold<cost)return false;
+  S.gold-=cost;const n=S.shop.rerolls+1;makeShop(S);S.shop.rerolls=n;return true;
+}
+function sellRelic(S,id){
+  const i=S.relics.indexOf(id);if(i<0)return false;
+  S.gold+=Math.floor(relicById(id).price/2);S.relics.splice(i,1);return true;
+}
+function nextStage(S){if(S.phase!=='shop')return;S.stage++;S.shop=null;S.reward=null;startStage(S);}
+/*CORE_END*/
+
+/* ---------- UI ---------- */
+const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rootEl=document.getElementById('app');
+let S=null,BEST=0;
+const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+
+function loadBest(){try{BEST=parseInt(localStorage.getItem('fivedice.best')||'0',10)||0;}catch(e){BEST=0;}}
+function saveBest(n){if(n>BEST){BEST=n;try{localStorage.setItem('fivedice.best',String(n));}catch(e){}}}
+function markSeen(){try{localStorage.setItem('fivedice.seen','1');}catch(e){}}
+function wasSeen(){try{return localStorage.getItem('fivedice.seen')==='1';}catch(e){return false;}}
+
+function dieHTML(i){
+  const val=(S.anim&&S.anim.idx.includes(i))?S.anim.vals[i]:S.dice[i];
+  const rolling=S.anim&&S.anim.idx.includes(i);
+  const scored=S.phase==='scored'&&S.last;
+  let cls='die';
+  if(rolling)cls+=' rolling';
+  else if(scored)cls+=S.last.idx.includes(i)?' hit':' dim';
+  else if(S.held[i]&&S.phase==='play')cls+=' held';
+  const pips=[0,1,2,3,4,5,6,7,8].map(n=>'<span class="pip'+(PIPS[val].includes(n)?' on':'')+'"></span>').join('');
+  const label='Кость '+(i+1)+': '+val+(S.held[i]&&S.phase==='play'?', оставлена':'');
+  return '<div class="die-wrap"><button class="'+cls+'" data-act="hold" data-i="'+i+'" data-fk="d'+i+'" aria-pressed="'+(S.held[i]&&S.phase==='play')+'" aria-label="'+label+'"'+(S.phase!=='play'||S.busy?' disabled':'')+'>'+pips+'</button><span class="tag">'+(S.held[i]&&S.phase==='play'&&!rolling?'держу':'')+'</span></div>';
+}
+function topHTML(){
+  return '<header class="top"><h1 class="brand">Пять костей</h1><div class="top-r">'+
+    '<span class="pill" title="Золото"><span class="coin"></span>'+S.gold+'</span>'+
+    '<button class="iconbtn" data-act="help" data-fk="help" aria-label="Правила игры">?</button></div></header>';
+}
+function helpHTML(){
+  if(!S.ui.help)return '';
+  return '<section class="card help"><p><b>Цель.</b> Набрать очки этапа за ограниченное число рук. Всего 8 этапов, на 3, 6 и 8 ждёт босс.</p>'+
+    '<p><b>Рука.</b> Кости брошены. Нажмите на кость, чтобы оставить её, остальные можно перебросить. Потом засчитайте комбинацию.</p>'+
+    '<p><b>Очки.</b> (фишки комбинации + сумма её костей) × множитель. Талисманы и уровни комбинаций добавляют и то и другое.</p>'+
+    '<p><b>Между этапами.</b> Магазин: талисманы (до 5) и улучшения комбинаций. Золото даётся за этап, за неиспользованные руки и по 1 за каждые 5 золотых в запасе (до 3).</p>'+
+    '<button class="btn btn-plain" data-act="helpClose" data-fk="helpclose">Понятно</button></section>';
+}
+function stageHTML(){
+  const st=STAGES[S.stage],b=bossOf(S),pct=Math.min(100,Math.round(S.score/st.target*100));
+  const done=S.score>=st.target;
+  return '<section class="card stage"><div class="stage-head"><span class="eyebrow">Этап '+(S.stage+1)+' из '+STAGES.length+'</span>'+
+    (b?'<span class="bosstag">Босс · '+b.name+'</span>':'')+'</div>'+
+    '<div class="score-line"><span class="score-num" id="scoreNum">'+S.shown+'</span><span class="score-target">/ '+st.target+'</span></div>'+
+    '<div class="bar'+(done?' done':'')+'"><i style="width:'+pct+'%"></i></div>'+
+    '<div class="meta"><span>Руки<b>'+S.handsLeft+'</b></span><span>Перебросы<b>'+S.rerollsLeft+'</b></span></div>'+
+    (b?'<p class="bossdesc">'+b.desc+'</p>':'')+'</section>';
+}
+function tableHTML(){
+  const play=S.phase==='play';
+  let mid='';
+  if(play){
+    const r=scoreHand(S.dice,S);
+    mid='<div class="read"><span class="name">'+r.name+'</span><span class="calc">'+fmt(r.chips)+' × '+fmt(r.mult)+' = <b>'+r.total+'</b></span></div>';
+  }else{
+    const r=S.last;
+    mid='<div class="bd">'+r.log.map(l=>'<div class="row"><span>'+l[0]+'</span><span>'+l[1]+'</span></div>').join('')+
+      '<div class="row total"><span>'+fmt(r.chips)+' × '+fmt(r.mult)+'</span><span>+'+r.total+'</span></div></div>';
+  }
+  const canRoll=play&&S.rerollsLeft>0&&S.held.some(h=>!h)&&!S.busy;
+  let act;
+  if(play){
+    act='<div class="actions"><button class="btn btn-roll" data-act="roll" data-fk="roll"'+(canRoll?'':' disabled')+'>Перебросить · '+S.rerollsLeft+'</button>'+
+      '<button class="btn btn-go" data-act="score" data-fk="score"'+(S.busy?' disabled':'')+'>Засчитать</button></div>';
+  }else{
+    const clear=S.score>=STAGES[S.stage].target;
+    act='<div class="actions one"><button class="btn btn-go" data-act="next" data-fk="next">'+(clear?'Завершить этап':(S.handsLeft>0?'Следующая рука':'Подвести итог'))+'</button></div>';
+  }
+  const hint=play&&S.rerollsLeft>0?'<p class="hint">Нажмите на кость, чтобы оставить её при броске</p>':'';
+  return '<section class="felt"><div class="dice">'+[0,1,2,3,4].map(dieHTML).join('')+'</div>'+mid+hint+act+'</section>';
+}
+function shopHTML(){
+  const sh=S.shop,rw=S.reward,nx=STAGES[S.stage+1],nb=nx.boss?BOSSES[nx.boss]:null;
+  const full=S.relics.length>=MAX_RELICS;
+  const rel=sh.relics.map(id=>{const r=relicById(id);const dis=S.gold<r.price||full;
+    return '<div class="offer"><div class="mk">'+r.mark+'</div><div class="txt"><b>'+r.name+'</b><span>'+r.desc+'</span></div>'+
+      '<button class="buy" data-act="buyRelic" data-id="'+r.id+'" data-fk="br-'+r.id+'"'+(dis?' disabled':'')+'>Купить · '+r.price+'</button></div>';}).join('');
+  const ups=sh.ups.map(k=>{const d=HANDS[k],p=upPrice(S,k),dis=S.gold<p;
+    return '<div class="offer"><div class="mk">ур.'+(S.levels[k]+1)+'</div><div class="txt"><b>'+d.name+'</b><span>+'+d.upC+' фишек и +'+d.upM+' к множителю</span></div>'+
+      '<button class="buy" data-act="buyUp" data-id="'+k+'" data-fk="bu-'+k+'"'+(dis?' disabled':'')+'>Улучшить · '+p+'</button></div>';}).join('');
+  const cost=2+sh.rerolls;
+  const detail=[];
+  if(rw.boss)detail.push('босс +'+rw.boss);
+  detail.push('этап +'+rw.base);
+  if(rw.hands)detail.push('руки +'+rw.hands);
+  if(rw.interest)detail.push('проценты +'+rw.interest);
+  return '<section class="card shop"><div class="reward"><h2>Этап '+(S.stage+1)+' пройден</h2><span class="big">+'+rw.total+'</span></div>'+
+    '<small class="note">Награда: '+detail.join(', ')+'.</small>'+
+    '<div class="eyebrow">Талисманы '+S.relics.length+'/'+MAX_RELICS+'</div>'+
+    (full?'<p class="note">Все слоты заняты. Продайте талисман ниже, чтобы купить новый.</p>':'')+
+    '<div class="offers">'+(rel||'<p class="note">Все талисманы уже у вас.</p>')+'</div>'+
+    '<div class="eyebrow">Улучшение комбинаций</div><div class="offers">'+(ups||'<p class="note">Улучшения закончились. Обновите магазин.</p>')+'</div>'+
+    '<div class="next"><span>Дальше: этап <b>'+(S.stage+2)+'</b>, цель <b>'+nx.target+'</b></span>'+(nb?'<span>Босс: <b>'+nb.name+'</b></span>':'')+'</div>'+
+    '<div class="actions"><button class="btn btn-line" data-act="shopRefresh" data-fk="refresh"'+(S.gold<cost?' disabled':'')+'>Обновить · '+cost+'</button>'+
+    '<button class="btn btn-go" data-act="nextStage" data-fk="nextstage">Дальше</button></div></section>';
+}
+function endHTML(){
+  const win=S.phase==='win',st=STAGES[S.stage];
+  return '<section class="card end'+(win?' win':'')+'"><h2>'+(win?'Все кости твои':'Забег окончен')+'</h2>'+
+    '<div class="big">'+(win?STAGES.length+' из '+STAGES.length:S.cleared+' из '+STAGES.length)+'</div>'+
+    '<p>'+(win?'Вы прошли все этапы, включая Хозяина костей.':'Этап '+(S.stage+1)+': '+S.score+' очков из '+st.target+'. Пройдено этапов: '+S.cleared+'.')+'</p>'+
+    '<p>Лучший результат: '+BEST+' из '+STAGES.length+' этапов</p>'+
+    '<button class="btn btn-plain" data-act="newRun" data-fk="newrun">Новый забег</button></section>';
+}
+function relicsHTML(){
+  let slots='';
+  for(let i=0;i<MAX_RELICS;i++){
+    const id=S.relics[i];
+    if(id){const r=relicById(id);slots+='<button class="slot'+(S.ui.sel===id?' sel':'')+'" data-act="selRelic" data-id="'+id+'" data-fk="rs-'+id+'" aria-label="'+r.name+'">'+r.mark+'</button>';}
+    else slots+='<div class="slot" aria-hidden="true"></div>';
+  }
+  let det;
+  const sel=S.ui.sel&&S.relics.includes(S.ui.sel)?relicById(S.ui.sel):null;
+  if(sel){
+    det='<div class="txt"><b>'+sel.name+'.</b> '+sel.desc+'</div>'+
+      (S.phase==='shop'?'<button class="btn btn-line sell" data-act="sell" data-id="'+sel.id+'" data-fk="sell">Продать · '+Math.floor(sel.price/2)+'</button>':'');
+  }else if(S.relics.length){det='<div class="txt">Нажмите на талисман, чтобы прочитать описание.</div>';}
+  else det='<div class="txt">Талисманы появятся в магазине после первого этапа.</div>';
+  return '<section class="relics"><div class="eyebrow">Талисманы</div><div class="slots">'+slots+'</div><div class="rdetail">'+det+'</div></section>';
+}
+function ledgerHTML(){
+  let cur=null;
+  if(S.phase==='play')cur=evalHand(S.dice).key;else if(S.last)cur=S.last.key;
+  const rows=ORDER.map(k=>{const d=HANDS[k],lv=S.levels[k];
+    return '<tr'+(k===cur?' class="cur"':'')+'><td>'+d.name+'</td><td>'+lv+'</td><td>'+(d.chips+(lv-1)*d.upC)+'</td><td>×'+(d.mult+(lv-1)*d.upM)+'</td></tr>';}).join('');
+  return '<details class="card ledger" id="ledger"'+(S.ui.ledger?' open':'')+'><summary>Комбинации</summary>'+
+    '<div class="tbl"><table><thead><tr><th>Комбинация</th><th>Ур.</th><th>Фишки</th><th>Множ.</th></tr></thead><tbody>'+rows+'</tbody></table></div></details>';
+}
+function render(){
+  const ae=document.activeElement,fk=ae&&ae.dataset&&ae.dataset.fk;
+  let main;
+  if(S.phase==='shop')main=shopHTML();
+  else if(S.phase==='over'||S.phase==='win')main=endHTML();
+  else main=tableHTML();
+  rootEl.innerHTML=topHTML()+helpHTML()+stageHTML()+main+relicsHTML()+ledgerHTML();
+  if(fk){const el=rootEl.querySelector('[data-fk="'+fk+'"]');if(el&&!el.disabled)el.focus({preventScroll:true});}
+  tweenScore();
+}
+function tweenScore(){
+  const el=document.getElementById('scoreNum');if(!el)return;
+  const from=S.shown,to=S.score;
+  if(from===to)return;
+  S.shown=to;
+  if(reduced){el.textContent=to;return;}
+  const t0=performance.now(),dur=600;
+  (function step(t){
+    const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+    const cur=document.getElementById('scoreNum');
+    if(cur)cur.textContent=Math.round(from+(to-from)*e);
+    if(p<1)requestAnimationFrame(step);
+  })(t0);
+}
+function tumble(idx){
+  if(reduced){render();return;}
+  S.busy=true;let n=0;
+  const t=setInterval(()=>{
+    n++;
+    if(n>=6){clearInterval(t);S.anim=null;S.busy=false;render();return;}
+    S.anim={idx,vals:[0,0,0,0,0].map(rnd)};render();
+  },70);
+}
+function finishCheck(){
+  if(S.phase==='over'||S.phase==='win')saveBest(S.cleared);
+}
+rootEl.addEventListener('toggle',e=>{if(e.target.id==='ledger'&&S)S.ui.ledger=e.target.open;},true);
+rootEl.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act]');if(!t||!S)return;
+  const a=t.dataset.act;
+  if(S.busy&&a!=='help'&&a!=='helpClose')return;
+  switch(a){
+    case 'hold':toggleHold(S,+t.dataset.i);render();break;
+    case 'roll':{const idx=rerollDice(S);if(idx.length)tumble(idx);break;}
+    case 'score':doScore(S);render();break;
+    case 'next':{advance(S);finishCheck();if(S.phase==='play')tumble([0,1,2,3,4]);else render();break;}
+    case 'buyRelic':buyRelic(S,t.dataset.id);render();break;
+    case 'buyUp':buyUp(S,t.dataset.id);render();break;
+    case 'shopRefresh':shopRefresh(S);render();break;
+    case 'nextStage':nextStage(S);tumble([0,1,2,3,4]);break;
+    case 'selRelic':S.ui.sel=S.ui.sel===t.dataset.id?null:t.dataset.id;render();break;
+    case 'sell':sellRelic(S,t.dataset.id);S.ui.sel=null;render();break;
+    case 'help':S.ui.help=!S.ui.help;if(!S.ui.help)markSeen();render();break;
+    case 'helpClose':S.ui.help=false;markSeen();render();break;
+    case 'newRun':{const ui=S.ui;S=newRun();S.ui=Object.assign(ui,{sel:null,help:false});tumble([0,1,2,3,4]);break;}
+  }
+});
+function start(data){
+  loadBest();
+  if(data&&data.S&&data.S.dice){S=data.S;S.busy=false;S.anim=null;}
+  else{S=newRun();S.ui.help=!wasSeen();}
+  render();
+}
+const hot=window.claude&&window.claude.hot;
+if(hot&&hot.snapshot)hot.snapshot(()=>({S}));
+if(hot&&hot.ready)hot.ready(start);else start((hot&&hot.data)||{});
+</script>
+
+</body></html>
