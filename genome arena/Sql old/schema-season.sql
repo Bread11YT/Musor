@@ -1,0 +1,13 @@
+-- Сезонный рейтинг. Выполнить один раз: wrangler d1 execute <имя_базы> --remote --file=schema-season.sql
+CREATE TABLE IF NOT EXISTS season_scores (
+  season INTEGER NOT NULL, uid INTEGER NOT NULL,
+  pts INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (season, uid)
+);
+CREATE INDEX IF NOT EXISTS idx_season_pts ON season_scores (season, pts DESC);
+CREATE TABLE IF NOT EXISTS season_claims (
+  uid INTEGER NOT NULL, season INTEGER NOT NULL, place INTEGER NOT NULL,
+  coins INTEGER NOT NULL DEFAULT 0, t1 INTEGER NOT NULL DEFAULT 0, t2 INTEGER NOT NULL DEFAULT 0, t3 INTEGER NOT NULL DEFAULT 0,
+  mc INTEGER NOT NULL DEFAULT 0, m1 INTEGER NOT NULL DEFAULT 0, m2 INTEGER NOT NULL DEFAULT 0, m3 INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (uid, season)
+);
